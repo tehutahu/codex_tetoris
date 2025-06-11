@@ -16,13 +16,20 @@ canvas {
   border: 2px solid #fff;
 }
 
-#next-container {
+.next-container {
   position: absolute;
   top: 50px;
-  left: calc(100% + 10px);
   display: flex;
   flex-direction: column;
   gap: 5px;
+}
+
+#next-container {
+  right: calc(100% + 10px);
+}
+
+#remote-next-container {
+  left: calc(100% + 10px);
 }
 
 .next-piece {
