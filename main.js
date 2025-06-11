@@ -2,6 +2,13 @@ const canvas = document.getElementById('tetris');
 const context = canvas.getContext('2d');
 context.scale(20, 20);
 
+// Remote player canvas
+const remoteCanvas = document.getElementById('remote-tetris');
+const remoteContext = remoteCanvas.getContext('2d');
+remoteContext.scale(20, 20);
+
+const socket = io();
+
 const nextContainer = document.getElementById('next-container');
 const nextContexts = [];
 for (let i = 0; i < 5; ++i) {
@@ -143,6 +150,14 @@ function draw() {
   drawMatrix(player.matrix, player.pos);
 }
 
+function drawRemote() {
+  remoteContext.fillStyle = '#000';
+  remoteContext.fillRect(0, 0, remoteCanvas.width, remoteCanvas.height);
+
+  drawMatrixOn(remoteArena, {x: 0, y: 0}, remoteContext);
+  drawMatrixOn(remotePlayer.matrix, remotePlayer.pos, remoteContext);
+}
+
 function drawNext() {
   nextContexts.forEach((ctx, idx) => {
     ctx.fillStyle = '#000';
@@ -253,11 +268,16 @@ function update(time = 0) {
 
   draw();
   drawNext();
+  socket.emit('state', { arena, player });
   requestAnimationFrame(update);
 }
 
 function updateScore() {
   document.getElementById('score').innerText = player.score;
+}
+
+function updateRemoteScore() {
+  document.getElementById('remote-score').innerText = remotePlayer.score;
 }
 
 const arena = createMatrix(12, 20);
@@ -267,6 +287,23 @@ const player = {
   score: 0,
 };
 
+const remoteArena = createMatrix(12, 20);
+const remotePlayer = {
+  pos: {x: 0, y: 0},
+  matrix: createMatrix(0, 0),
+  score: 0,
+};
+
+socket.on('state', state => {
+  remoteArena.splice(0, remoteArena.length, ...state.arena.map(row => row.slice()));
+  remotePlayer.pos = state.player.pos;
+  remotePlayer.matrix = state.player.matrix;
+  remotePlayer.score = state.player.score;
+  updateRemoteScore();
+  drawRemote();
+});
+
 playerReset();
 updateScore();
+drawRemote();
 update();

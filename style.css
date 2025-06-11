@@ -7,6 +7,11 @@ body {
   margin: 0;
 }
 
+.board {
+  position: relative;
+  margin: 0 20px;
+}
+
 canvas {
   border: 2px solid #fff;
 }
@@ -25,7 +30,7 @@ canvas {
   background: #000;
 }
 
-#score {
+#score, #remote-score {
   position: absolute;
   top: 10px;
   left: 10px;
