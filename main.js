@@ -2,6 +2,19 @@ const canvas = document.getElementById('tetris');
 const context = canvas.getContext('2d');
 context.scale(20, 20);
 
+const nextContainer = document.getElementById('next-container');
+const nextContexts = [];
+for (let i = 0; i < 5; ++i) {
+  const c = document.createElement('canvas');
+  c.width = 80;
+  c.height = 80;
+  c.classList.add('next-piece');
+  nextContainer.appendChild(c);
+  const ctx = c.getContext('2d');
+  ctx.scale(20, 20);
+  nextContexts.push(ctx);
+}
+
 const colors = [
   null,
   '#FF0D72',
@@ -12,6 +25,17 @@ const colors = [
   '#FFE138',
   '#3877FF',
 ];
+
+const pieces = 'ILJOTSZ';
+
+function getRandomPiece() {
+  return pieces[(pieces.length * Math.random()) | 0];
+}
+
+const nextPieces = [];
+for (let i = 0; i < 5; ++i) {
+  nextPieces.push(getRandomPiece());
+}
 
 function arenaSweep() {
   outer: for (let y = arena.length - 1; y > 0; --y) {
@@ -96,15 +120,19 @@ function createPiece(type) {
   }
 }
 
-function drawMatrix(matrix, offset) {
+function drawMatrixOn(matrix, offset, ctx) {
   matrix.forEach((row, y) => {
     row.forEach((value, x) => {
       if (value !== 0) {
-        context.fillStyle = colors[value];
-        context.fillRect(x + offset.x, y + offset.y, 1, 1);
+        ctx.fillStyle = colors[value];
+        ctx.fillRect(x + offset.x, y + offset.y, 1, 1);
       }
     });
   });
+}
+
+function drawMatrix(matrix, offset) {
+  drawMatrixOn(matrix, offset, context);
 }
 
 function draw() {
@@ -113,6 +141,17 @@ function draw() {
 
   drawMatrix(arena, {x: 0, y: 0});
   drawMatrix(player.matrix, player.pos);
+}
+
+function drawNext() {
+  nextContexts.forEach((ctx, idx) => {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, 4, 4);
+    const matrix = createPiece(nextPieces[idx]);
+    const offX = ((4 - matrix[0].length) / 2) | 0;
+    const offY = ((4 - matrix.length) / 2) | 0;
+    drawMatrixOn(matrix, {x: offX, y: offY}, ctx);
+  });
 }
 
 function merge(arena, player) {
@@ -158,8 +197,8 @@ function playerMove(dir) {
 }
 
 function playerReset() {
-  const pieces = 'ILJOTSZ';
-  player.matrix = createPiece(pieces[(pieces.length * Math.random()) | 0]);
+  player.matrix = createPiece(nextPieces.shift());
+  nextPieces.push(getRandomPiece());
   player.pos.y = 0;
   player.pos.x = (arena[0].length / 2 | 0) -
                  (player.matrix[0].length / 2 | 0);
@@ -213,6 +252,7 @@ function update(time = 0) {
   }
 
   draw();
+  drawNext();
   requestAnimationFrame(update);
 }
 
