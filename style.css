@@ -19,7 +19,7 @@ canvas {
 #next-container {
   position: absolute;
   top: 50px;
-  right: 10px;
+  left: calc(100% + 10px);
   display: flex;
   flex-direction: column;
   gap: 5px;
