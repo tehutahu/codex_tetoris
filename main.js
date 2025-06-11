@@ -13,12 +13,12 @@ const nextContainer = document.getElementById('next-container');
 const nextContexts = [];
 for (let i = 0; i < 5; ++i) {
   const c = document.createElement('canvas');
-  c.width = 80;
-  c.height = 80;
+  c.width = 40;
+  c.height = 40;
   c.classList.add('next-piece');
   nextContainer.appendChild(c);
   const ctx = c.getContext('2d');
-  ctx.scale(20, 20);
+  ctx.scale(10, 10);
   nextContexts.push(ctx);
 }
 
