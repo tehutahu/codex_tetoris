@@ -13,13 +13,26 @@ const nextContainer = document.getElementById('next-container');
 const nextContexts = [];
 for (let i = 0; i < 5; ++i) {
   const c = document.createElement('canvas');
-  c.width = 80;
-  c.height = 80;
+  c.width = 60;
+  c.height = 60;
   c.classList.add('next-piece');
   nextContainer.appendChild(c);
   const ctx = c.getContext('2d');
-  ctx.scale(20, 20);
+  ctx.scale(15, 15);
   nextContexts.push(ctx);
+}
+
+const remoteNextContainer = document.getElementById('remote-next-container');
+const remoteNextContexts = [];
+for (let i = 0; i < 5; ++i) {
+  const c = document.createElement('canvas');
+  c.width = 60;
+  c.height = 60;
+  c.classList.add('next-piece');
+  remoteNextContainer.appendChild(c);
+  const ctx = c.getContext('2d');
+  ctx.scale(15, 15);
+  remoteNextContexts.push(ctx);
 }
 
 const colors = [
@@ -43,6 +56,8 @@ const nextPieces = [];
 for (let i = 0; i < 5; ++i) {
   nextPieces.push(getRandomPiece());
 }
+
+let remoteNextPieces = [];
 
 function arenaSweep() {
   outer: for (let y = arena.length - 1; y > 0; --y) {
@@ -169,6 +184,17 @@ function drawNext() {
   });
 }
 
+function drawRemoteNext() {
+  remoteNextContexts.forEach((ctx, idx) => {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, 4, 4);
+    const matrix = createPiece(remoteNextPieces[idx] || 'I');
+    const offX = ((4 - matrix[0].length) / 2) | 0;
+    const offY = ((4 - matrix.length) / 2) | 0;
+    drawMatrixOn(matrix, {x: offX, y: offY}, ctx);
+  });
+}
+
 function merge(arena, player) {
   player.matrix.forEach((row, y) => {
     row.forEach((value, x) => {
@@ -268,7 +294,7 @@ function update(time = 0) {
 
   draw();
   drawNext();
-  socket.emit('state', { arena, player });
+  socket.emit('state', { arena, player, nextPieces });
   requestAnimationFrame(update);
 }
 
@@ -299,8 +325,10 @@ socket.on('state', state => {
   remotePlayer.pos = state.player.pos;
   remotePlayer.matrix = state.player.matrix;
   remotePlayer.score = state.player.score;
+  remoteNextPieces = state.nextPieces || remoteNextPieces;
   updateRemoteScore();
   drawRemote();
+  drawRemoteNext();
 });
 
 playerReset();
