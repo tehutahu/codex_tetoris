@@ -11,6 +11,20 @@ canvas {
   border: 2px solid #fff;
 }
 
+#next-container {
+  position: absolute;
+  top: 50px;
+  right: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.next-piece {
+  border: 2px solid #fff;
+  background: #000;
+}
+
 #score {
   position: absolute;
   top: 10px;
