@@ -35,6 +35,17 @@ for (let i = 0; i < 5; ++i) {
   remoteNextContexts.push(ctx);
 }
 
+const messageDiv = document.getElementById('message');
+
+function showMessage(text) {
+  messageDiv.innerText = text;
+  messageDiv.style.display = 'block';
+}
+
+function hideMessage() {
+  messageDiv.style.display = 'none';
+}
+
 const colors = [
   null,
   '#FF0D72',
@@ -256,9 +267,9 @@ function playerReset() {
   player.pos.x = (arena[0].length / 2 | 0) -
                  (player.matrix[0].length / 2 | 0);
   if (collide(arena, player)) {
-    arena.forEach(row => row.fill(0));
-    player.score = 0;
-    updateScore();
+    player.gameOver = true;
+    showMessage('GAME OVER');
+    return;
   }
 }
 
@@ -277,7 +288,27 @@ function playerRotate(dir) {
   }
 }
 
+function resetGame() {
+  arena.forEach(row => row.fill(0));
+  nextPieces.splice(0, nextPieces.length);
+  for (let i = 0; i < 5; ++i) {
+    nextPieces.push(getRandomPiece());
+  }
+  player.score = 0;
+  updateScore();
+  player.gameOver = false;
+  hideMessage();
+  dropCounter = 0;
+  playerReset();
+}
+
 document.addEventListener('keydown', event => {
+  if (player.gameOver) {
+    if (event.key === 'Enter') {
+      resetGame();
+    }
+    return;
+  }
   if (event.key === 'ArrowLeft') {
     playerMove(-1);
   } else if (event.key === 'ArrowRight') {
@@ -290,6 +321,8 @@ document.addEventListener('keydown', event => {
     playerRotate(-1);
   } else if (event.key === 'w') {
     playerRotate(1);
+  } else if (event.key === 'Enter' && player.gameOver) {
+    resetGame();
   }
 });
 
@@ -301,14 +334,16 @@ function update(time = 0) {
   const deltaTime = time - lastTime;
   lastTime = time;
 
-  dropCounter += deltaTime;
-  if (dropCounter > dropInterval) {
-    playerDrop();
+  if (!player.gameOver) {
+    dropCounter += deltaTime;
+    if (dropCounter > dropInterval) {
+      playerDrop();
+    }
   }
 
   draw();
   drawNext();
-  socket.emit('state', { arena, player, nextPieces });
+  socket.emit('state', { arena, player, nextPieces, gameOver: player.gameOver });
   requestAnimationFrame(update);
 }
 
@@ -325,6 +360,7 @@ const player = {
   pos: {x: 0, y: 0},
   matrix: null,
   score: 0,
+  gameOver: false,
 };
 
 const remoteArena = createMatrix(12, 20);
@@ -333,6 +369,8 @@ const remotePlayer = {
   matrix: createMatrix(0, 0),
   score: 0,
 };
+
+let remoteGameOver = false;
 
 socket.on('state', state => {
   remoteArena.splice(0, remoteArena.length, ...state.arena.map(row => row.slice()));
@@ -343,6 +381,17 @@ socket.on('state', state => {
   updateRemoteScore();
   drawRemote();
   drawRemoteNext();
+  if (state.gameOver && !remoteGameOver) {
+    remoteGameOver = true;
+    if (!player.gameOver) {
+      showMessage('YOU WIN!');
+    }
+  } else if (!state.gameOver && remoteGameOver) {
+    remoteGameOver = false;
+    if (!player.gameOver) {
+      hideMessage();
+    }
+  }
 });
 
 playerReset();

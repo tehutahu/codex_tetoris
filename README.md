@@ -36,5 +36,6 @@ A simple Tetris implementation that runs directly in your browser.
 - **Arrow Left / Right**: Move the piece sideways
 - **Arrow Down**: Drop the piece faster
 - **q / w**: Rotate the piece
+- **Enter**: Restart after a game over
 
 

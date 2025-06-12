@@ -44,3 +44,18 @@ canvas {
   color: #fff;
   font-family: monospace;
 }
+
+.message {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-family: monospace;
+  font-size: 3rem;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 20px 40px;
+  border: 2px solid #fff;
+  display: none;
+  z-index: 1000;
+}
