@@ -3,8 +3,14 @@
   "version": "1.0.0",
   "description": "Tetris game with optional multiplayer",
   "main": "server.js",
+  "workspaces": [
+    "client"
+  ],
   "scripts": {
     "start": "node server.js",
+    "prestart": "npm run build",
+    "build": "npm run build -w client",
+    "dev": "npm run dev -w client",
     "test": "echo \"No tests specified\" && exit 0"
   },
   "dependencies": {
