@@ -1,19 +1,29 @@
 # codex_tetoris
-A simple Tetris implementation that runs directly in your browser.
+A simple Tetris implementation that now uses **React** and **Phaser**.
 
 ブラウザで実行できる簡単なテトリス実装です。
 
 ## How to Run
 
-### Local Server
-1. Install dependencies and start the Node.js server:
+### Local Development
+1. Install dependencies and start the development server:
    ```
    npm install
+   npm run dev
+   ```
+2. Open `http://localhost:3000` in your web browser.
+
+### Build and Run
+1. Build the client application:
+   ```
+   npm run build
+   ```
+2. Start the Node.js server:
+   ```
    npm start
    ```
-2. Open `http://localhost:3000/index.html` in your web browser.
 
-### Docker
+### Docker (optional)
 1. Build the container:
    ```
    docker build -t codex_tetoris .
@@ -39,3 +49,10 @@ A simple Tetris implementation that runs directly in your browser.
 - **Enter**: Restart after a game over
 
 
+
+## TODO
+- Implement attack mechanics between players
+- Support "T-spin" moves and related scoring
+- Add simple login and user management
+- Create CPU opponents
+- Enable matches with more than two players
