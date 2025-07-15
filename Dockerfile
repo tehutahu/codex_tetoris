@@ -2,12 +2,13 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy package files for all workspaces
-COPY package*.json ./
-COPY client/package*.json ./client/
+# Copy package files only (package-lock.json is excluded by .dockerignore)
+COPY package.json ./
+COPY client/package.json ./client/
 
-# Install dependencies for all workspaces
+# Install all dependencies: root + workspaces
 RUN npm install
+RUN npm install --workspaces
 
 # Copy client source and build
 COPY client/ ./client/
