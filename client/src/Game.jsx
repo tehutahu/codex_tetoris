@@ -111,6 +111,7 @@ class TetrisScene extends Phaser.Scene {
       matrix: createMatrix(0, 0),
       score: 0,
     };
+    this.remoteNextPieces = [];
     this.remoteGameOver = false;
   }
 
@@ -241,28 +242,28 @@ class TetrisScene extends Phaser.Scene {
 
   updateScore() {
     if (!this.scoreText) {
-      this.scoreText = this.add.text(10, 10, `${this.player.score}`, {
+      this.scoreText = this.add.text(110, 10, `Player 1: ${this.player.score}`, {
         fontFamily: 'monospace',
         color: '#ffffff',
       });
     } else {
-      this.scoreText.setText(`${this.player.score}`);
+      this.scoreText.setText(`Player 1: ${this.player.score}`);
     }
   }
 
   updateRemoteScore() {
     if (!this.remoteScoreText) {
       this.remoteScoreText = this.add.text(
-        BOARD_WIDTH * CELL_SIZE + 10,
+        BOARD_WIDTH * CELL_SIZE + 130,
         10,
-        `${this.remotePlayer.score}`,
+        `Player 2: ${this.remotePlayer.score}`,
         {
           fontFamily: 'monospace',
           color: '#ffffff',
         }
       );
     } else {
-      this.remoteScoreText.setText(`${this.remotePlayer.score}`);
+      this.remoteScoreText.setText(`Player 2: ${this.remotePlayer.score}`);
     }
   }
 
@@ -282,29 +283,80 @@ class TetrisScene extends Phaser.Scene {
     });
   }
 
+  drawNextPieces(nextPieces, offsetX, graphics) {
+    if (!nextPieces || nextPieces.length === 0) return;
+    
+    nextPieces.forEach((pieceType, index) => {
+      const piece = createPiece(pieceType);
+      const yOffset = index * 60 + 60; // Spacing between pieces
+      
+      // Draw background for each next piece
+      graphics.fillStyle(0x333333, 1);
+      graphics.fillRect(offsetX, yOffset, 80, 50);
+      graphics.lineStyle(1, 0xffffff, 1);
+      graphics.strokeRect(offsetX, yOffset, 80, 50);
+      
+      // Draw the piece
+      piece.forEach((row, y) => {
+        row.forEach((value, x) => {
+          if (value !== 0) {
+            graphics.fillStyle(Phaser.Display.Color.HexStringToColor(COLORS[value]).color, 1);
+            graphics.fillRect(
+              offsetX + x * 15 + 5,
+              yOffset + y * 15 + 5,
+              15,
+              15
+            );
+          }
+        });
+      });
+    });
+  }
+
   draw() {
     this.graphics.clear();
     this.remoteGraphics.clear();
-    // background
+    
+    // Draw player 1 board
     this.graphics.fillStyle(0x000000, 1);
     this.graphics.fillRect(0, 0, BOARD_WIDTH * CELL_SIZE, BOARD_HEIGHT * CELL_SIZE);
+    this.graphics.lineStyle(2, 0xffffff, 1);
+    this.graphics.strokeRect(0, 0, BOARD_WIDTH * CELL_SIZE, BOARD_HEIGHT * CELL_SIZE);
+    
+    // Draw player 2 board
     this.remoteGraphics.fillStyle(0x000000, 1);
-    this.remoteGraphics.fillRect(
-      0,
-      0,
-      BOARD_WIDTH * CELL_SIZE,
-      BOARD_HEIGHT * CELL_SIZE
-    );
+    this.remoteGraphics.fillRect(0, 0, BOARD_WIDTH * CELL_SIZE, BOARD_HEIGHT * CELL_SIZE);
+    this.remoteGraphics.lineStyle(2, 0xffffff, 1);
+    this.remoteGraphics.strokeRect(0, 0, BOARD_WIDTH * CELL_SIZE, BOARD_HEIGHT * CELL_SIZE);
+    
+    // Draw game pieces
     this.drawMatrix(this.arena, { x: 0, y: 0 }, this.graphics);
     this.drawMatrix(this.player.matrix, this.player.pos, this.graphics);
 
     this.drawMatrix(this.remoteArena, { x: 0, y: 0 }, this.remoteGraphics);
     this.drawMatrix(this.remotePlayer.matrix, this.remotePlayer.pos, this.remoteGraphics);
+    
+    // Draw next pieces for both players
+    this.drawNextPieces(this.nextPieces, -90, this.graphics);  // 自分のネクストを左側に
+    this.drawNextPieces(this.remoteNextPieces, BOARD_WIDTH * CELL_SIZE + 10, this.remoteGraphics);  // 相手のネクストを右側に
   }
 
   create() {
-    this.graphics = this.add.graphics({ x: 0, y: 0 });
-    this.remoteGraphics = this.add.graphics({ x: BOARD_WIDTH * CELL_SIZE + 20, y: 0 });
+    this.graphics = this.add.graphics({ x: 100, y: 0 });  // 左側にスペースを確保
+    this.remoteGraphics = this.add.graphics({ x: BOARD_WIDTH * CELL_SIZE + 120, y: 0 });  // 右側も調整
+    
+    // Add player labels
+    this.add.text(110, 30, 'Player 1', {
+      fontFamily: 'monospace',
+      fontSize: '14px',
+      color: '#ffffff',
+    });
+    this.add.text(BOARD_WIDTH * CELL_SIZE + 130, 30, 'Player 2', {
+      fontFamily: 'monospace',
+      fontSize: '14px',
+      color: '#ffffff',
+    });
+    
     this.updateScore();
     this.updateRemoteScore();
     this.playerReset();
@@ -315,6 +367,7 @@ class TetrisScene extends Phaser.Scene {
       this.remotePlayer.pos = state.player.pos;
       this.remotePlayer.matrix = state.player.matrix;
       this.remotePlayer.score = state.player.score;
+      this.remoteNextPieces = state.nextPieces || [];
       this.updateRemoteScore();
       this.remoteGameOver = state.gameOver;
     });
@@ -383,7 +436,7 @@ export default function Game() {
     if (gameContainer.current) {
       const game = new Phaser.Game({
         type: Phaser.CANVAS,
-        width: BOARD_WIDTH * CELL_SIZE * 2 + 20,
+        width: BOARD_WIDTH * CELL_SIZE * 2 + 20 + 200,  // 左右にネクスト用スペース100pxずつ追加
         height: BOARD_HEIGHT * CELL_SIZE,
         parent: gameContainer.current,
         scene: TetrisScene,

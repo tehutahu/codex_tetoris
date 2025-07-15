@@ -30,7 +30,7 @@ A simple Tetris implementation that now uses **React** and **Phaser**.
    ```
 2. Run the container:
    ```
-   docker run -p 3000:3000 codex_tetoris
+   docker run -p 3000:3000 --rm --name tetoris codex_tetoris
    ```
 
 ### Multiplayer
