@@ -1,7 +1,7 @@
 {
   "name": "codex_tetoris",
   "version": "1.0.0",
-  "description": "Tetris game with optional multiplayer",
+  "description": "Single-player 20-line sprint",
   "main": "server.js",
   "engines": {
     "node": ">=20.19 <21"
@@ -12,11 +12,7 @@
   "scripts": {
     "start": "node server.js",
     "build": "npm run build -w client",
-    "dev": "node scripts/dev.js",
+    "dev": "npm run dev -w client",
     "test": "node --test"
-  },
-  "dependencies": {
-    "express": "^4.18.2",
-    "socket.io": "^4.7.2"
   }
 }
