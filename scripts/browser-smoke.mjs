@@ -127,12 +127,12 @@ try {
   assert.equal(await number('#lines'), 0);
   assert.equal(await number('#score'), 0);
 
-  // Focus loss is a real browser event and must pause the live game.
-  const other = await context.newPage();
-  await other.goto('about:blank');
-  await page.waitForFunction(() => document.querySelector('#status-label').textContent === '一時停止');
-  await other.close();
-  await page.bringToFront();
+  // Headless tabs do not model desktop focus. Exercise the production blur listener explicitly.
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  assert.equal(await text('#status-label'), '一時停止');
+  const blurTime = await text('#time');
+  await page.clock.runFor(1600);
+  assert.equal(await text('#time'), blurTime, 'blur handler freezes the displayed timer');
   await page.locator('#session-action').click();
   await page.locator('#board').click();
   assert.equal(await text('#status-label'), 'プレイ中');
@@ -173,7 +173,7 @@ try {
     seed: ACCEPTANCE_SEED, winningPieces: plan.length, losingPieces: lostPieces,
     lines: plan.at(-1).lines, score: plan.at(-1).score,
     checks: ['start', 'move', 'rotate', 'soft-drop', 'gravity', 'pause-time',
-      'hard-drop', 'line-clear', 'win', 'game-over', 'restart', 'blur-pause',
+      'hard-drop', 'line-clear', 'win', 'game-over', 'restart', 'blur-event-pause',
       'mobile-buttons', 'mobile-layout', 'offline-continuation', 'console', 'network'],
     errors, externalRequests, failedResponses,
   };
