@@ -29,6 +29,24 @@ Windowsの今回の実行環境では標準のnpm.cmdが同梱Node 24を優先�
 
 回転は、初手の回転しても変わらないOを固定して次のSで描画の変化を確認します。左右の回転・移動、画面の6操作ボタン、ソフトドロップの加点には結果のアサーションを設けています。
 
+## 最終構成の実測結果
+
+Windows / Node 20.20.2 / Chromium 153.0.8010.12で、標準HTTPへ置き換えた統合構成を確認しました。
+
+| 検証 | 結果 |
+| --- | --- |
+| `npm ci` | lockfileからクリーン導入成功 |
+| `npm test` | 32テスト成功、失敗・skipなし。ゲーム規則・controllerと配信10テスト |
+| `npm run build` | 成功。JS 14.32kB（gzip 5.84kB）、CSS 8.35kB（gzip 2.50kB）、chunk警告なし |
+| `npm audit --audit-level=high` | 開発依存を含め脆弱性0件 |
+| 本番依存 | root/clientとも空。ViteとPlaywrightは開発用 |
+| `npm run test:browser` | 本番HTTP上のChromiumで全確認成功 |
+| seed `acceptance-20` の完走 | 52個配置、20ライン、3950点でクリア |
+| 中央への積み上げ | 10個でゲーム終了。クリア・ゲーム終了の両方から再開成功 |
+| console/runtime error・外部request・asset失敗 | 各0件 |
+
+ゲームと配信のPR #24/#25のUbuntu / Node 20 CIは成功しています。最終PRは初期セットアップとChromium受け入れを同じクリーンCIへ接続します。スクリーンショットは `desktop.png`、`line-clear.png`、`won.png`、`mobile.png`、結果は `report.json` に保存します。
+
 ## 確認した範囲
 
 - 起動、左右移動・回転、ソフト／ハードドロップ、自然落下、NEXT描画。
