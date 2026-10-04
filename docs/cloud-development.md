@@ -73,4 +73,4 @@ OpenAI-hosted environment は Node.js などのツール、事前インストー
 - **Codex クラウド中心で開発することは可能**。
 - GitHub、再現可能な setup、CI、人による merge 判断を組み合わせれば、ローカル PC を日常的な必須環境にする必要はない。
 - 一方、ブラウザでの操作感、複数クライアント、デプロイ先固有の動作は自動テストだけに任せず、preview 環境またはリリース前の人手確認を残す。
-- 次の実装タスクは、`docs/current-status.md` の Baseline PR と Quality PR をまとめて進め、CI と実テストを有効化するのが適切である。
+- 最新の着手順と完了条件は [管理Issue #21](https://github.com/tehutahu/codex_tetoris/issues/21) を参照する。ゲームルールとアーキテクチャを含む通常の設計判断はエージェントに任せ、既存仕様の維持を必須にしない。
