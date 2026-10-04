@@ -60,14 +60,19 @@ try {
   assert.notEqual(await bitmap(), beforeMove, 'left input changes the drawn piece');
   await page.keyboard.press('ArrowRight');
   assert.equal(await bitmap(), beforeMove, 'right input returns the piece');
+  await page.keyboard.press('Space'); // The initial O cannot verify rotation; the next S can.
+  const beforeRotate = await bitmap();
   await page.keyboard.press('x');
+  assert.notEqual(await bitmap(), beforeRotate, 'right rotation changes the non-square piece');
   await page.keyboard.press('z');
-  assert.equal(await bitmap(), beforeMove, 'opposite rotations return the piece');
+  assert.equal(await bitmap(), beforeRotate, 'left rotation returns the non-square piece');
+  const beforeSoftScore = await number('#score');
   await page.keyboard.press('ArrowDown');
-  assert.equal(await number('#score'), 1, 'soft drop awards one point');
+  assert.equal(await number('#score'), beforeSoftScore + 1, 'soft drop awards one point');
   const beforeGravity = await bitmap();
   await page.clock.runFor(816);
   assert.notEqual(await bitmap(), beforeGravity, 'gravity advances on the real frame loop');
+  assert.notEqual(await text('#time'), '00:00.0', 'playing time advances on the displayed clock');
   await page.keyboard.press('p');
   assert.equal(await text('#status-label'), '一時停止');
   const pausedTime = await text('#time');
@@ -135,9 +140,20 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true,
     'mobile viewport has no horizontal overflow');
+  await page.locator('[data-action="hardDrop"]').click();
+  assert(await number('#score') > 0, 'screen drop fixes the initial square');
+  const beforeMobileMove = await bitmap();
   await page.locator('[data-action="moveLeft"]').click();
+  assert.notEqual(await bitmap(), beforeMobileMove, 'screen left button moves the piece');
+  await page.locator('[data-action="moveRight"]').click();
+  assert.equal(await bitmap(), beforeMobileMove, 'screen right button returns the piece');
   await page.locator('[data-action="rotateRight"]').click();
+  assert.notEqual(await bitmap(), beforeMobileMove, 'screen right rotation changes the non-square piece');
+  await page.locator('[data-action="rotateLeft"]').click();
+  assert.equal(await bitmap(), beforeMobileMove, 'screen left rotation returns the piece');
+  const beforeMobileSoft = await number('#score');
   await page.locator('[data-action="softDrop"]').click();
+  assert.equal(await number('#score'), beforeMobileSoft + 1, 'screen soft drop awards a point');
   const mobileScore = await number('#score');
   await page.locator('[data-action="hardDrop"]').click();
   assert(await number('#score') > mobileScore, 'screen drop button reaches the same input path');

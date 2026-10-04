@@ -13,6 +13,10 @@
     "start": "node server.js",
     "build": "npm run build -w client",
     "dev": "npm run dev -w client",
-    "test": "node --test"
+    "test": "node --test",
+    "test:browser": "node scripts/browser-smoke.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
   }
 }
