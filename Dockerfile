@@ -15,7 +15,6 @@ RUN npm run build
 
 # Copy server files
 COPY server.js ./
-COPY vite.config.js ./
 
 # Expose port and start server
 EXPOSE 3000
