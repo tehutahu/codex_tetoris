@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Tetris game with optional multiplayer",
   "main": "server.js",
+  "engines": {
+    "node": ">=20.19 <21"
+  },
   "workspaces": [
     "client"
   ],
