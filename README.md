@@ -8,6 +8,12 @@ A simple Tetris implementation that now uses **React** and **Phaser**.
 > Codex クラウドを主な開発環境にするための準備と運用方針は
 > [Codex クラウド開発ガイド](docs/cloud-development.md) を参照してください。
 
+## 開発方針と課題管理
+
+このリポジトリはエージェント主導の開発実験です。ゲームルールとアーキテクチャを含め、既存にとらわれず自由に再設計してよい方針です。通常の仕様・設計判断はエージェントに任せます。
+
+別セッションのgoalで開発を進める場合は、[管理Issue #21](https://github.com/tehutahu/codex_tetoris/issues/21) と `AGENTS.md` を最初に読み、対象Issueの完了条件と関連PRを確認してください。進捗はGitHub Issuesに集約します。下記のTODOは過去の候補であり、すべてを実装する義務はありません。
+
 ## How to Run
 
 ### Local Development
