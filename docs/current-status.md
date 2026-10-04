@@ -2,9 +2,9 @@
 
 ## 結論
 
-現在のリポジトリには React + Phaser のテトリス本体と、Socket.IO で相手の画面を中継する最小構成がある。ただし、クリーンインストールからビルドできず、自動テストも実質的に動作していない。そのため、現状は「実装の原型はあるが、再現可能な開発・リリース基盤がない」段階と判断する。
+現在のリポジトリには React + Phaser のテトリス本体と、Socket.IO で相手の画面を中継する最小構成がある。クリーンインストールとプロダクションビルドは再現可能になったが、自動テストはまだ実質的に動作していない。そのため、現状は「開発基盤の再構築に着手した原型」の段階と判断する。
 
-Git 履歴上の最終変更は 2025-07-15 で、調査日時点で約 15 か月更新されていない。
+開発再開前の最終変更は 2025-07-15 だった。2026-10-04 に現状調査（PR #15）を main に取り込み、この PR で開発環境の再現性を整備した。
 
 ## 確認できた構成
 
@@ -19,36 +19,36 @@ Git 履歴上の最終変更は 2025-07-15 で、調査日時点で約 15 か月
 
 ## 検証結果
 
-調査は Node.js `v20.20.2` / npm `11.4.2` の Linux x64 環境で実施した。
+以下は PR 作成時に Node.js `v20.20.2` / npm `11.4.2` の Linux x64 環境で実施した検証結果。初期調査（PR #15）では build が失敗し、本番依存に 9 件の脆弱性があったが、この PR の lockfile 再生成後に以下の結果となった。
 
 | コマンド | 結果 | 意味 |
 | --- | --- | --- |
 | `npm ci` | 成功 | lockfile からの依存導入自体は完了する。 |
-| `npm run build` | 失敗 | `@rollup/rollup-linux-x64-gnu` が lockfile/導入結果になく、Vite 起動前に停止する。 |
+| `npm run build` | 成功 | lockfile 再生成と Phaser の bundle 対象化後、Vite の production build が成功する。 |
 | `npm test` | 見かけ上成功 | `No tests specified` を表示するだけで、テストは 0 件。 |
 | `npx --no-install jest --runInBand` | 失敗 | Jest が未導入のため、既存テストを実行できない。 |
-| `npm audit --omit=dev` | 失敗 | 本番依存に high 5 件、moderate 4 件の脆弱性が報告された。 |
+| `npm audit --omit=dev` | 成功 | lockfile 再生成後の本番依存で既知の脆弱性は 0 件。 |
+
+### コンフリクト解消時の再検証（2026-10-04）
+
+Windows x64 / Node.js `v20.20.2` / npm `11.6.2` で `npm ci`、`npm run build`、`npm audit --omit=dev` が成功し、本番依存の既知の脆弱性は 0 件だった。`npm test` も終了コード 0 だが、実際のテストは 0 件。
+
+ビルド成果物を `server.js` で配信し、Playwright の Chromium で盤面と落下するテトリミノの描画を確認した。ブラウザの console error / warning は 0 件。2 人対戦の操作確認は未実施。Docker はデーモンが起動していないため、イメージビルドは未検証。ビルドでは 500 kB を超える bundle の警告が残る。
 
 ## 主な問題とリスク
 
 ### P0: まず開発の再現性を回復する
 
-1. **Linux でビルド不能**  
-   lockfile が Rollup の Linux x64 用 optional package を解決できていない。過去の Docker 対応は lockfile をコンテナにコピーしない回避策であり、ローカル/CI の `npm ci` を直していない。lockfile を対象環境で再生成し、`npm ci && npm run build` を通す必要がある。
-2. **Phaser の外部化設定**  
-   Vite は `phaser` を Rollup の `external` にしている一方、HTML に import map や CDN script がない。ビルド復旧後もブラウザが bare import を解決できない可能性が高いため、通常の bundle 対象に戻して E2E 確認する。
-3. **検証の入り口が機能していない**  
+1. **検証の入り口が機能していない**
    `npm test` を実際の test runner に接続し、必要な devDependencies を明示する。既存テストは本番の `server.js` や `client/dist` を使わず、独自に Express app を再実装しているため、サーバーの回帰検知には不十分。
 
 ### P1: 運用可能な最小品質にする
 
-1. **脆弱な依存関係**  
-   Express/Socket.IO 系の本番依存に high を含む 9 件が残っている。互換性を確認しつつ更新し、audit を CI に入れる。
-2. **マルチプレイの境界がない**  
+1. **マルチプレイの境界がない**
    全接続者への broadcast のため、3 人以上では複数人の状態が単一の「相手」表示を上書きする。ペア/ルームをサーバー側で管理する。
-3. **クライアント入力を無検証で中継**  
+2. **クライアント入力を無検証で中継**
    `state` のサイズ、形、頻度に制限がない。現状は各クライアントがほぼ毎フレーム全盤面を送信するため、schema validation、rate limit、差分または送信間隔の制御が必要。
-4. **開発手順が不完全**  
+3. **開発手順が不完全**
    README の `npm run dev` は Vite だけを起動する。既定ポートも Vite は 5173、Express は 3000 であり、記載どおり `localhost:3000` でマルチプレイを開発できない。クライアント/サーバーを並行起動する script と手順が必要。
 
 ### P2: 機能と保守性を改善する
@@ -60,7 +60,7 @@ Git 履歴上の最終変更は 2025-07-15 で、調査日時点で約 15 か月
 
 ## 再開ロードマップ案
 
-1. **Baseline PR**: lockfile/Phaser bundle/開発 script を修正し、Linux のクリーン環境で build と起動を成功させる。
+1. **Baseline PR（完了）**: lockfile/Phaser bundle/Codex setup script を修正し、Linux のクリーン環境で install と build を成功させる。
 2. **Quality PR**: ロジック分離、有効な unit/integration test、GitHub Actions を追加する。
 3. **Security PR**: 依存更新、Socket.IO payload validation/rate limit、ルーム制を導入する。
 4. **Product PR**: 勝敗フローと切断/再戦 UX を完成し、その後に攻撃メカニクス等の TODO を優先順位付けする。

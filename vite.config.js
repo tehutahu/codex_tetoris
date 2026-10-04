@@ -8,12 +8,6 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: 'index.html',
-      external: ['phaser'],
-      output: {
-        globals: {
-          phaser: 'Phaser',
-        },
-      },
     },
   },
   plugins: [react()],

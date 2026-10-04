@@ -5,6 +5,8 @@ A simple Tetris implementation that now uses **React** and **Phaser**.
 
 > **Project status:** 開発再開に向けた現状、検証結果、優先課題は
 > [プロジェクト現状調査](docs/current-status.md) を参照してください。
+> Codex クラウドを主な開発環境にするための準備と運用方針は
+> [Codex クラウド開発ガイド](docs/cloud-development.md) を参照してください。
 
 ## How to Run
 
