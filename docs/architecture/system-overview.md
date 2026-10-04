@@ -1,85 +1,19 @@
-# System Overview
+# システム構成
 
-This document provides a high-level overview of the codex_tetoris system architecture.
-
-## Architecture Overview
-
-The system consists of three main layers:
-
-1. **Frontend Layer**: React application with Phaser game engine
-2. **Backend Layer**: Node.js server with Express and Socket.IO
-3. **Communication Layer**: WebSocket-based real-time communication
-
-## System Architecture Diagram
+ひとり用の20ライン・スプリントを、静的なHTML/CSS/JavaScriptで実行します。規則のテストとブラウザの入力・描画を分け、小さなゲームを同じ出現順で再現できる構成を選びました。
 
 ```mermaid
-graph TD
-    A[Client Browser] --> B[React App]
-    B --> C[Phaser Game Engine]
-    C --> D[TetrisScene]
-    
-    B --> E[Socket.IO Client]
-    E --> F[WebSocket Connection]
-    F --> G[Node.js Server]
-    G --> H[Express Server]
-    G --> I[Socket.IO Server]
-    
-    I --> J[Game State Broadcasting]
-    J --> K[Other Players]
-    
-    H --> L[Static File Serving]
-    L --> M[Built React App]
-    
-    subgraph "Frontend (Port 3000)"
-        B
-        C
-        D
-        E
-    end
-    
-    subgraph "Backend (Port 3000)"
-        G
-        H
-        I
-        J
-    end
-    
-    subgraph "Game Logic"
-        D
-        N[Piece Movement]
-        O[Collision Detection]
-        P[Line Clearing]
-        Q[Score Management]
-        
-        D --> N
-        D --> O
-        D --> P
-        D --> Q
-    end
-    
-    subgraph "Dependencies"
-        R[react: ^18.2.0]
-        S[phaser: ^3.70.0]
-        T[socket.io-client: ^4.7.2]
-        U[express: ^4.18.2]
-        V[socket.io: ^4.7.2]
-    end
+flowchart LR
+  Input[キーボード・画面ボタン] --> Controller[controller.js]
+  Clock[単調増加時計] --> Controller
+  Controller --> Rules[game.js / 独立した規則]
+  Rules --> View[main.js / DOM・Canvas]
+  Node[Node HTTP / server.js] --> Assets[静的ビルド成果物]
+  Assets --> View
 ```
 
-## Key Components
+ゲーム状態はブラウザ内にあります。サーバーはHTTP配信だけを担当します。React、Phaser、Express、Socket.IOを外し、今回の規模に必要な規則・入力・描画の境界を直接表現します。
 
-### Frontend Components
-- **React App**: Main application framework
-- **Phaser Game Engine**: Handles game rendering and physics
-- **Socket.IO Client**: Manages real-time communication
+配布と受け入れの基準はNode 20/npmです。Dockerは廃止しました。コンテナのビルド・デーモン管理を必須にする理由がないため、クリーンなLinux CIとREADMEのローカル配信手順に検証対象を絞っています。公開デプロイは対象外です。
 
-### Backend Components
-- **Express Server**: Serves static files and handles HTTP requests
-- **Socket.IO Server**: Manages WebSocket connections and broadcasts game state
-- **Game State Broadcasting**: Synchronizes game state between players
-
-### Dependencies
-- **React**: Frontend framework for UI components
-- **Phaser**: 2D game engine for rendering and game logic
-- **Socket.IO**: Real-time bidirectional communication
-- **Express**: Web server framework 
+詳細は [ゲーム仕様](../game-design.md)、[オフライン採用の判断](../offline-decision.md)、[受け入れ結果](../acceptance.md) を参照してください。

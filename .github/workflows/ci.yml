@@ -17,7 +17,14 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      - run: bash scripts/codex-setup.sh
       - run: npm test
-      - run: npm run build
       - run: npm audit --audit-level=high
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-acceptance
+          path: output/playwright/
+          if-no-files-found: ignore
