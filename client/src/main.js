@@ -28,9 +28,9 @@ root.innerHTML = `
           <h2>キーボード</h2>
           <dl>
             <div><dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>移動</dd></div>
-            <div><dt><kbd>↑</kbd> / <kbd>X</kbd> <kbd>Z</kbd></dt><dd>右 / 左回転</dd></div>
+            <div><dt><kbd>Space</kbd> <kbd>X</kbd> / <kbd>Z</kbd></dt><dd>右 / 左回転</dd></div>
             <div><dt><kbd>↓</kbd></dt><dd>ソフトドロップ</dd></div>
-            <div><dt><kbd>Space</kbd></dt><dd>ハードドロップ</dd></div>
+            <div><dt><kbd>↑</kbd></dt><dd>ハードドロップ</dd></div>
             <div><dt><kbd>P</kbd> / <kbd>Esc</kbd></dt><dd>一時停止 / 続ける</dd></div>
             <div><dt><kbd>Enter</kbd></dt><dd>開始 / 終了後に再開</dd></div>
           </dl>
@@ -47,7 +47,7 @@ root.innerHTML = `
             <button id="overlay-action" class="primary-button">スタート</button>
           </div>
         </div>
-        <div class="board-caption"><span class="ghost-key" aria-hidden="true"></span> 淡い枠が着地点。Spaceで一気に落下。</div>
+        <div class="board-caption"><span class="ghost-key" aria-hidden="true"></span> 淡い枠が着地点。↑で一気に落下。</div>
       </section>
       <aside class="side-panel" aria-label="進行と操作">
         <section class="progress-card">
@@ -251,8 +251,8 @@ elements.restart.addEventListener('click', () => {
 
 const KEY_ACTIONS = {
   ArrowLeft: 'moveLeft', ArrowRight: 'moveRight', ArrowDown: 'softDrop',
-  ArrowUp: 'rotateRight', KeyX: 'rotateRight', KeyW: 'rotateRight',
-  KeyZ: 'rotateLeft', KeyQ: 'rotateLeft', Space: 'hardDrop',
+  Space: 'rotateRight', KeyX: 'rotateRight', KeyW: 'rotateRight',
+  KeyZ: 'rotateLeft', KeyQ: 'rotateLeft', ArrowUp: 'hardDrop',
   KeyP: 'pause', Escape: 'pause', KeyR: 'restart',
 };
 window.addEventListener('keydown', event => {
