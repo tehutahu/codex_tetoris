@@ -80,6 +80,10 @@ localStorage取得が拒否される別ブラウザcontextでも、保存不可�
 
 別contextでタッチ相当のタップだけを使った20ライン完走・記録保存・再挑戦と、390×844 / 844×390のレイアウトを確認しました。ChromiumではCDPのnative touchイベントで長押し、2本指の併用、2本目だけの解除、ボタン外への移動、touchCancelも確認しました。Firefox・WebKitの長押しはmouse pointerのシナリオで確認するため、タッチ長押しと同じ証拠にしません。レポートの `touch.physicalDevice` はfalseです。
 
-Windows上のPlaywright Firefox 155は `spawn UNKNOWN` で起動に失敗しました。テスト対象の不具合と断定せず、クリーンなUbuntu CIでも3エンジンを確認します。`npm run test:browser:all` はいずれかが失敗すると非0で終了します。成功・失敗の画面と診断を `output/playwright/<engine>/` に保存し、CIはエンジンごとのartifactを残します。レポートにはHEADコミットと追跡ファイルの未コミット変更有無を記録します。
+Windows上のPlaywright Firefox 155は `spawn UNKNOWN` で起動に失敗しました。テスト対象の不具合と断定せず、クリーンなUbuntu CIで3エンジンを確認しました。最初のFirefoxシナリオは固定pointer IDを使ったテスト側の誤りで失敗したため、実際に届いたIDでcancelとcapture喪失を検証するよう修正しました。
+
+[CI run 37444618120](https://github.com/tehutahu/codex_tetoris/actions/runs/37444618120) は3ジョブすべて成功。PR headは `a684357`、テストされたPR合成コミットは `898055f1db5c704e99c898c6904a838f9ab50a9d`、追跡ファイルは未変更でした。Node 20.20.2、Chromium 153.0.8010.12、Firefox 155.0、WebKit 26.6で、それぞれクリーン導入・53テスト・ビルド・依存監査・本番シナリオ・タッチ相当の合法完走が成功しました。3エンジンとも52ピース・20ライン・3950点、中央積み10ピースでlost、エラー・外部通信・asset失敗0件をartifactのJSONで確認しました。Firefoxの小画面スクリーンショットも目視確認しました。
+
+`npm run test:browser:all` はいずれかが失敗すると非0で終了します。成功・失敗の画面と診断を `output/playwright/<engine>/` に保存し、CIはエンジンごとのartifactを残します。レポートにはHEADコミットと追跡ファイルの未コミット変更有無を記録します。
 
 **実機の受け入れは未完了です。** 実スマートフォンの長押し・指の解除・誤スクロール、OSの実ウィンドウ切り替えとタブ非表示は自動検証から推定しません。[実機の手順](device-acceptance.md)に端末・OS・ブラウザ版・コミット・操作・結果の報告形式を残しています。実Safari未検証のため対応表示に含めません。#28/#29のmain統合と必要な実機の証拠が揃うまでIssue #30は閉じません。
