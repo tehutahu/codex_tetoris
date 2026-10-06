@@ -9,6 +9,7 @@ import { createGame, updateGame, RULES_ID } from '../client/src/game.js';
 import { recordKey } from '../client/src/records.js';
 import { touchAcceptance } from './touch-acceptance.mjs';
 import { ACCEPTANCE_SEED, sprintPlan } from './sprint-plan.mjs';
+import { dailyAcceptance } from './daily-acceptance.mjs';
 
 const browserName = process.env.PW_BROWSER || 'chromium';
 const browserType = { chromium, firefox, webkit }[browserName];
@@ -319,6 +320,7 @@ try {
   }
   assert.equal(await text('#status-label'), '20ライン達成！');
   const faster = JSON.parse(await readSaved());
+  const daily = await dailyAcceptance({ browser, origin, output, observe, normalRecord: await readSaved() });
   assert(faster.overall.elapsedMs < saved.overall.elapsedMs, 'a faster legal completion updates best');
   assert.equal(await text('#record-status'), '自己ベスト更新！');
   await restart();
@@ -381,7 +383,7 @@ try {
       'best-save-once', 'reload-best', 'faster-completion-best', 'lost-pause-no-save',
       'same-new-seed-retry', 'delete-cancel-confirm', 'storage-denied-complete-retry',
       'offline-continuation', 'console', 'network'],
-    touch, errors, externalRequests, failedResponses,
+    daily, touch, errors, externalRequests, failedResponses,
   };
   await writeFile(resolve(output, 'report.json'), JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify(report, null, 2));
