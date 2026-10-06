@@ -52,6 +52,7 @@ try {
   page = await context.newPage();
   await page.addInitScript(() => {
     window.recordWrites = 0;
+    window.addEventListener('pointerdown', event => { window.lastPointerId = event.pointerId; }, true);
     const original = Storage.prototype.setItem;
     Storage.prototype.setItem = function(key, value) {
       if (key.startsWith('block-sprint.records.')) window.recordWrites++;
@@ -186,13 +187,14 @@ try {
   for (const eventName of ['pointercancel', 'lostpointercapture']) {
     await restart();
     await pointerDown();
+    const pointerId = await page.evaluate(() => window.lastPointerId);
     if (eventName === 'pointercancel') {
-      await pointerButton.dispatchEvent('pointercancel', { pointerId: 1 });
+      await pointerButton.dispatchEvent('pointercancel', { pointerId });
     } else {
       // Activate the pending capture before releasing it; cancelling a pending
       // capture has no lostpointercapture event in the Pointer Events model.
       await page.mouse.move(pointerBounds.x + pointerBounds.width / 2 + 1, pointerBounds.y + pointerBounds.height / 2);
-      await pointerButton.evaluate(button => button.releasePointerCapture(1));
+      await pointerButton.evaluate((button, id) => button.releasePointerCapture(id), pointerId);
       await page.mouse.move(pointerBounds.x + pointerBounds.width / 2 + 2, pointerBounds.y + pointerBounds.height / 2);
     }
     const score = await number('#score');
