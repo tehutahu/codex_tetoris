@@ -7,6 +7,8 @@
 - [システム構成](architecture/system-overview.md)
 - [ファイルと実行経路](architecture/project-structure.md)
 - [受け入れ手順・検証結果](acceptance.md)
+- [実スマートフォン・実デスクトップの確認手順](device-acceptance.md)
+- [次のゲーム案](next-game-ideas.md)
 - [開発環境の運用](cloud-development.md)
 
 旧React/Phaser/Socket.IO構成の図と手順は、現行構成と矛盾するため整理しました。過去の実装・調査はGit履歴と関連PRから確認できます。
