@@ -54,16 +54,18 @@ URLの `?seed=任意の文字列` を共有すると同じ出現順になりま�
 npm test
 npm run build
 npm audit --audit-level=high
-npx playwright install chromium
-npm run test:browser
+npx playwright install chromium firefox webkit
+npm run test:browser:all
 ```
 
-`npm test` はNode標準テストランナーで本番のゲーム規則・controller・HTTP配信を検証し、失敗時は非0を返します。`test:browser` はビルド済み成果物を一時ポートで配信して実Chromiumで操作します。合法なキー入力で20ライン達成・ゲームオーバー・再開まで確認し、画面とレポートを `output/playwright/` に保存します。テスト終了時にブラウザとサーバーを閉じます。
+`npm test` はNode標準テストランナーで本番のゲーム規則・controller・HTTP配信を検証し、失敗時は非0を返します。`test:browser:all` はビルド済み成果物を一時ポートで配信してChromium / Firefox / WebKitで同じシナリオを実行します。合法なキー入力とタッチ相当のタップで20ライン達成・記録保存・再挑戦を確認し、画面とコミット・ブラウザ版を含むレポートを `output/playwright/<ブラウザ名>/` に保存します。失敗時も画面・診断を保存し、ブラウザとサーバーを閉じます。
 
-PRのCIはクリーンなUbuntu / Node 20で導入・実テスト・ビルド・依存監査・Chromium検証を実行し、スクリーンショットをartifactへ保存します。実測結果と未検証範囲は [受け入れ記録](docs/acceptance.md) を参照してください。
+`npm run test:browser` はChromiumだけを実行します。PowerShellで1つを選ぶ場合は `$env:PW_BROWSER='webkit'; npm.cmd run test:browser`（または `firefox`）を使います。POSIXでは `PW_BROWSER=webkit npm run test:browser` です。Chromiumではnative touch相当の長押し・複数指・ボタン外への解除・cancelも検証します。他2エンジンはタッチ相当のタップとmouse pointerの長押しを分けて記録します。
+
+PRのCIはクリーンなUbuntu / Node 20で導入・実テスト・ビルド・依存監査・3ブラウザ検証を行うマトリクスを使い、スクリーンショットをブラウザ別artifactへ保存します。実測結果と未検証範囲は [受け入れ記録](docs/acceptance.md) を参照してください。
 
 ## 構成と範囲
 
-本番ゲームはブラウザの標準機能、配信はNode標準HTTPを使います。ViteとPlaywrightは開発用です。「オフライン」は、初回にHTMLとassetを取得した後、ゲーム進行が通信に依存しないことを指します。PWA・ネット切断後の新規起動・クラウド保存・ランキング・公開デプロイは対象外です。Chromiumで検証しています。実機のタッチ操作、Safari、Firefoxは未検証です。
+本番ゲームはブラウザの標準機能、配信はNode標準HTTPを使います。ViteとPlaywrightは開発用です。「オフライン」は、初回にHTMLとassetを取得した後、ゲーム進行が通信に依存しないことを指します。PWA・ネット切断後の新規起動・クラウド保存・ランキング・公開デプロイは対象外です。実スマートフォンと実Safariの対応は未確認です。WebKitの自動検証成功を実Safariの対応確認とは扱いません。
 
 [文書の入口](docs/README.md) に構成と設計理由をまとめています。エージェントがゲームルールとアーキテクチャを自由に選ぶ方針は `AGENTS.md` と [管理Issue #21](https://github.com/tehutahu/codex_tetoris/issues/21) が入口です。課題と進捗はGitHub Issues/PRを正本とし、文書に進捗チェックリストは複製しません。

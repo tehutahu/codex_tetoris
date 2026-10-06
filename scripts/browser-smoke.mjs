@@ -2,18 +2,26 @@ import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { chromium } from 'playwright';
+import { execFileSync } from 'node:child_process';
+import { chromium, firefox, webkit } from 'playwright';
 import { createGameServer } from '../server.js';
 import { createGame, updateGame, RULES_ID } from '../client/src/game.js';
 import { recordKey } from '../client/src/records.js';
+import { touchAcceptance } from './touch-acceptance.mjs';
 import { ACCEPTANCE_SEED, sprintPlan } from './sprint-plan.mjs';
 
-const output = resolve('output/playwright');
+const browserName = process.env.PW_BROWSER || 'chromium';
+const browserType = { chromium, firefox, webkit }[browserName];
+if (!browserType) throw new Error(`Unknown PW_BROWSER: ${browserName}`);
+const commit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+const sourceDirty = execFileSync('git', ['status', '--porcelain', '--untracked-files=no'], { encoding: 'utf8' }).trim().length > 0;
+const output = resolve('output/playwright', browserName);
 await mkdir(output, { recursive: true });
 const plan = sprintPlan();
 const created = createGameServer();
 const server = created.server ?? created;
 let browser;
+let page;
 const errors = [];
 const externalRequests = [];
 const failedResponses = [];
@@ -21,13 +29,27 @@ const keys = {
   moveLeft: 'ArrowLeft', moveRight: 'ArrowRight',
   rotateLeft: 'z', rotateRight: 'x', softDrop: 'ArrowDown', hardDrop: 'Space',
 };
+let origin;
+function observe(target) {
+  target.on('pageerror', error => errors.push(String(error)));
+  target.on('console', message => {
+    if (message.type() === 'error') errors.push(message.text());
+  });
+  target.on('request', request => {
+    if (!request.url().startsWith(origin + '/') && !request.url().startsWith('data:'))
+      externalRequests.push(request.url());
+  });
+  target.on('response', response => {
+    if (response.status() >= 400) failedResponses.push(response.status() + ' ' + response.url());
+  });
+}
 try {
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
-  const origin = 'http://127.0.0.1:' + server.address().port;
-  browser = await chromium.launch();
+  origin = 'http://127.0.0.1:' + server.address().port;
+  browser = await browserType.launch();
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
-  const page = await context.newPage();
+  page = await context.newPage();
   await page.addInitScript(() => {
     window.recordWrites = 0;
     const original = Storage.prototype.setItem;
@@ -36,17 +58,7 @@ try {
       return original.call(this, key, value);
     };
   });
-  page.on('pageerror', error => errors.push(String(error)));
-  page.on('console', message => {
-    if (message.type() === 'error') errors.push(message.text());
-  });
-  page.on('request', request => {
-    if (!request.url().startsWith(origin + '/') && !request.url().startsWith('data:'))
-      externalRequests.push(request.url());
-  });
-  page.on('response', response => {
-    if (response.status() >= 400) failedResponses.push(response.status() + ' ' + response.url());
-  });
+  observe(page);
   const startTime = new Date('2026-10-04T00:00:00Z');
   await page.clock.install({ time: startTime });
   const response = await page.goto(origin + '/?seed=' + ACCEPTANCE_SEED);
@@ -332,7 +344,7 @@ try {
     Object.defineProperty(window, 'localStorage', { get() { throw new Error('Storage denied'); } });
   });
   const deniedPage = await deniedContext.newPage();
-  deniedPage.on('pageerror', error => errors.push(String(error)));
+  observe(deniedPage);
   await deniedPage.clock.install({ time: startTime });
   await deniedPage.goto(origin + '/?seed=' + ACCEPTANCE_SEED);
   await deniedPage.clock.pauseAt(new Date(startTime.getTime() + 1000));
@@ -345,11 +357,13 @@ try {
   await deniedPage.locator('#overlay-action').click();
   assert.equal(await deniedPage.locator('#status-label').textContent(), 'プレイ中');
   await deniedContext.close();
+  const touch = await touchAcceptance({ browser, browserName, origin, output, plan, observe });
   assert.deepEqual(errors, [], 'no console or runtime errors');
   assert.deepEqual(externalRequests, [], 'no external runtime request');
   assert.deepEqual(failedResponses, [], 'no missing production asset');
   const report = {
-    runtime: process.version, browser: await browser.version(),
+    commit, sourceDirty, platform: process.platform, runtime: process.version,
+    engine: browserName, browser: await browser.version(),
     seed: ACCEPTANCE_SEED, winningPieces: plan.length, losingPieces: lostPieces,
     lines: plan.at(-1).lines, score: plan.at(-1).score,
     checks: ['start', 'move', 'rotate', 'soft-drop', 'gravity', 'pause-time',
@@ -360,11 +374,14 @@ try {
       'best-save-once', 'reload-best', 'faster-completion-best', 'lost-pause-no-save',
       'same-new-seed-retry', 'delete-cancel-confirm', 'storage-denied-complete-retry',
       'offline-continuation', 'console', 'network'],
-    errors, externalRequests, failedResponses,
+    touch, errors, externalRequests, failedResponses,
   };
   await writeFile(resolve(output, 'report.json'), JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify(report, null, 2));
 } catch (error) {
+  if (page && !page.isClosed()) await page.screenshot({ path: resolve(output, 'failure.png'), fullPage: true }).catch(() => {});
+  await writeFile(resolve(output, 'failure.json'), JSON.stringify({ commit, engine: browserName,
+    error: String(error), errors, externalRequests, failedResponses }, null, 2) + '\n');
   console.error(error);
   process.exitCode = 1;
 } finally {
