@@ -88,6 +88,107 @@ try {
   assert.equal(await number('#score'), 0);
   assert.equal(await number('#lines'), 0);
   assert.equal(await text('#time'), '00:00.0');
+  // Use production events and visible pixels/score; never rewrite the board.
+  const restart = async () => {
+    await page.locator('#restart').click();
+    await page.locator('#board').click();
+  };
+  await page.keyboard.down('ArrowLeft');
+  const immediateLeft = await bitmap();
+  await page.clock.runFor(160);
+  assert.equal(await bitmap(), immediateLeft, 'horizontal repeat waits');
+  await page.clock.runFor(40);
+  assert.notEqual(await bitmap(), immediateLeft, 'horizontal hold repeats');
+  await page.keyboard.up('ArrowLeft');
+  const released = await bitmap();
+  await page.clock.runFor(100);
+  assert.equal(await bitmap(), released, 'keyup stops repeat');
+  await restart();
+  await page.keyboard.down('ArrowDown');
+  await page.clock.runFor(100);
+  assert.equal(await number('#score'), 3, 'soft drop repeats every 45ms');
+  await page.keyboard.up('ArrowDown');
+  await page.clock.runFor(100);
+  assert.equal(await number('#score'), 3, 'soft release stops scoring');
+  await restart();
+  await page.keyboard.down('Space');
+  const dropScore = await number('#score');
+  await page.clock.runFor(200);
+  assert.equal(await number('#score'), dropScore, 'hard drop does not repeat');
+  await page.keyboard.up('Space');
+  await page.keyboard.down('x');
+  const heldRotation = await bitmap();
+  await page.clock.runFor(200);
+  assert.equal(await bitmap(), heldRotation, 'rotation does not repeat');
+  await page.keyboard.up('x');
+  await restart();
+  await page.keyboard.down('ArrowLeft');
+  await page.keyboard.press('p');
+  await page.clock.runFor(1000);
+  await page.keyboard.press('p');
+  const resumed = await bitmap();
+  await page.clock.runFor(250);
+  assert.equal(await bitmap(), resumed, 'pause clears held keys');
+  await restart();
+  const resetHeld = await bitmap();
+  await page.clock.runFor(250);
+  assert.equal(await bitmap(), resetHeld, 'restart clears held keys');
+  await page.keyboard.up('ArrowLeft');
+  await restart();
+  for (let i = 0; i < 18; i++) await page.keyboard.press('ArrowDown');
+  const nextBeforeLock = await page.locator('#next').getAttribute('aria-label');
+  await page.clock.runFor(200);
+  assert.equal(await page.locator('#next').getAttribute('aria-label'), nextBeforeLock,
+    'landed piece stays adjustable');
+  await page.keyboard.press('ArrowLeft');
+  await page.clock.runFor(200);
+  assert.equal(await page.locator('#next').getAttribute('aria-label'), nextBeforeLock,
+    'successful grounded movement extends the delay');
+  await page.clock.runFor(120);
+  assert.notEqual(await page.locator('#next').getAttribute('aria-label'), nextBeforeLock,
+    'piece locks after the extended delay');
+  await restart();
+  const pointerButton = page.locator('[data-action="softDrop"]');
+  await pointerButton.scrollIntoViewIfNeeded();
+  const pointerBounds = await pointerButton.boundingBox();
+  const pointerDown = async () => {
+    await page.mouse.move(pointerBounds.x + pointerBounds.width / 2, pointerBounds.y + pointerBounds.height / 2);
+    await page.mouse.down();
+  };
+  await pointerDown();
+  await page.clock.runFor(100);
+  assert.equal(await number('#score'), 3, 'pointer hold shares keyboard timing');
+  await page.mouse.move(pointerBounds.x - 10, pointerBounds.y);
+  await page.clock.runFor(100);
+  assert.equal(await number('#score'), 3, 'moving outside releases the held pointer');
+  await page.mouse.up();
+  for (const eventName of ['pointercancel', 'lostpointercapture']) {
+    await restart();
+    await pointerDown();
+    if (eventName === 'pointercancel') {
+      await pointerButton.dispatchEvent('pointercancel', { pointerId: 1 });
+    } else {
+      // Activate the pending capture before releasing it; cancelling a pending
+      // capture has no lostpointercapture event in the Pointer Events model.
+      await page.mouse.move(pointerBounds.x + pointerBounds.width / 2 + 1, pointerBounds.y + pointerBounds.height / 2);
+      await pointerButton.evaluate(button => button.releasePointerCapture(1));
+      await page.mouse.move(pointerBounds.x + pointerBounds.width / 2 + 2, pointerBounds.y + pointerBounds.height / 2);
+    }
+    const score = await number('#score');
+    await page.clock.runFor(100);
+    assert.equal(await number('#score'), score, eventName + ' clears input');
+    await page.mouse.up();
+  }
+  await restart();
+  await page.keyboard.down('ArrowLeft');
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  await page.locator('#session-action').click();
+  await page.locator('#board').click();
+  const afterBlur = await bitmap();
+  await page.clock.runFor(250);
+  assert.equal(await bitmap(), afterBlur, 'blur clears held keys on resume');
+  await page.keyboard.up('ArrowLeft');
+  await restart();
   await page.screenshot({ path: resolve(output, 'desktop.png'), fullPage: true });
 
   let firstClearChecked = false;
@@ -174,7 +275,10 @@ try {
     lines: plan.at(-1).lines, score: plan.at(-1).score,
     checks: ['start', 'move', 'rotate', 'soft-drop', 'gravity', 'pause-time',
       'hard-drop', 'line-clear', 'win', 'game-over', 'restart', 'blur-event-pause',
-      'mobile-buttons', 'mobile-layout', 'offline-continuation', 'console', 'network'],
+      'keyboard-hold-release', 'pointer-hold-outside-release', 'pointercancel-event',
+      'lostpointercapture', 'one-shot-rotation-drop', 'grounded-adjustment',
+      'pause-restart-blur-input-clear', 'mobile-buttons', 'mobile-layout',
+      'offline-continuation', 'console', 'network'],
     errors, externalRequests, failedResponses,
   };
   await writeFile(resolve(output, 'report.json'), JSON.stringify(report, null, 2) + '\n');

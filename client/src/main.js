@@ -79,7 +79,7 @@ root.innerHTML = `
         </div>
       </section>
     </main>
-    <footer>10 × 20 · 7-BAG · OFFLINE <span>回転は水平の壁キックのみ / 落下後は即固定</span></footer>
+    <footer>10 × 20 · 7-BAG · OFFLINE <span>水平の壁キック / 接地猶予300ms・延長8回まで</span></footer>
   </div>`;
 
 const elements = Object.fromEntries([
@@ -236,38 +236,34 @@ window.addEventListener('keydown', event => {
   const action = KEY_ACTIONS[event.code];
   if (!action) return;
   event.preventDefault();
-  if (event.repeat && !['moveLeft', 'moveRight', 'softDrop'].includes(action)) return;
-  controller.dispatch(action);
+  if (event.repeat) return;
+  if (['pause', 'restart'].includes(action)) controller.dispatch(action);
+  else controller.press(`key:${event.code}`, action);
 });
+window.addEventListener('keyup', event => controller.release(`key:${event.code}`));
 
-let holdTimeout;
-let holdInterval;
-function stopHold() {
-  clearTimeout(holdTimeout);
-  clearInterval(holdInterval);
-}
 for (const button of root.querySelectorAll('[data-action]')) {
   button.addEventListener('pointerdown', event => {
     if (event.button !== 0) return;
     event.preventDefault();
-    stopHold();
     button.setPointerCapture(event.pointerId);
-    controller.dispatch(button.dataset.action);
-    if (button.dataset.repeat) {
-      holdTimeout = setTimeout(() => {
-        holdInterval = setInterval(() => controller.dispatch(button.dataset.action), 85);
-      }, 220);
-    }
+    controller.press(`pointer:${event.pointerId}`, button.dataset.action);
   });
   button.addEventListener('click', event => {
     if (event.detail === 0) controller.dispatch(button.dataset.action);
   });
-  button.addEventListener('pointerup', stopHold);
-  button.addEventListener('pointercancel', stopHold);
-  button.addEventListener('lostpointercapture', stopHold);
+  const release = event => controller.release(`pointer:${event.pointerId}`);
+  button.addEventListener('pointerup', release);
+  button.addEventListener('pointercancel', release);
+  button.addEventListener('lostpointercapture', release);
+  button.addEventListener('pointermove', event => {
+    const bounds = button.getBoundingClientRect();
+    if (event.clientX < bounds.left || event.clientX > bounds.right ||
+        event.clientY < bounds.top || event.clientY > bounds.bottom) release(event);
+  });
 }
 function pauseWhenAway() {
-  stopHold();
+  controller.clearInput();
   if (controller.getState().status === 'playing') controller.dispatch('pause');
 }
 window.addEventListener('blur', pauseWhenAway);

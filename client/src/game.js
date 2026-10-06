@@ -2,6 +2,9 @@ export const BOARD_WIDTH = 10;
 export const BOARD_HEIGHT = 20;
 export const TARGET_LINES = 20;
 export const DROP_INTERVAL_MS = 800;
+export const RULES_ID = 'sprint-20-lock300-v1';
+export const LOCK_DELAY_MS = 300;
+export const MAX_LOCK_RESETS = 8;
 export const PIECE_TYPES = ['I', 'J', 'L', 'O', 'S', 'T', 'Z'];
 
 const SHAPES = {
@@ -84,6 +87,7 @@ export function createGame(seed = 'sprint') {
     seed: String(seed), status: 'ready', board: createBoard(), active: null,
     next: [], bag: [], randomState: hashSeed(seed), lines: 0, score: 0,
     elapsedMs: 0, dropElapsedMs: 0, pieces: 0, lastClear: 0,
+    rulesId: RULES_ID, lockElapsedMs: 0, lockResets: 0,
   };
   state.active = spawn(takePiece(state));
   state.next = Array.from({ length: 3 }, () => takePiece(state));
@@ -109,6 +113,8 @@ function lockPiece(state) {
   state.score += [0, 100, 300, 500, 800][cleared.count];
   state.pieces++;
   state.dropElapsedMs = 0;
+  state.lockElapsedMs = 0;
+  state.lockResets = 0;
   if (state.lines >= TARGET_LINES) {
     state.status = 'won';
     state.active = null;
@@ -121,7 +127,7 @@ function lockPiece(state) {
 
 function fall(state, soft = false) {
   if (collides(state.board, state.active, state.active.x, state.active.y + 1)) {
-    lockPiece(state);
+    return;
   } else {
     state.active = { ...state.active, y: state.active.y + 1 };
     if (soft) state.score++;
@@ -140,12 +146,17 @@ export function updateGame(previous, action) {
   }
   if (previous.status !== 'playing') return previous;
   const state = { ...previous, next: [...previous.next], bag: [...previous.bag] };
+  const wasGrounded = collides(state.board, state.active, state.active.x, state.active.y + 1);
   switch (type) {
     case 'moveLeft':
     case 'moveRight': {
       const x = state.active.x + (type === 'moveLeft' ? -1 : 1);
       if (collides(state.board, state.active, x)) return previous;
       state.active = { ...state.active, x };
+      if (wasGrounded && state.lockResets < MAX_LOCK_RESETS) {
+        state.lockElapsedMs = 0;
+        state.lockResets++;
+      }
       break;
     }
     case 'rotateLeft':
@@ -156,6 +167,10 @@ export function updateGame(previous, action) {
         !collides(state.board, state.active, state.active.x + dx, state.active.y, matrix));
       if (offset === undefined) return previous;
       state.active = { ...state.active, x: state.active.x + offset, matrix };
+      if (wasGrounded && state.lockResets < MAX_LOCK_RESETS) {
+        state.lockElapsedMs = 0;
+        state.lockResets++;
+      }
       break;
     }
     case 'softDrop':
@@ -173,11 +188,16 @@ export function updateGame(previous, action) {
       let remaining = action.deltaMs;
       if (!Number.isFinite(remaining) || remaining <= 0) return previous;
       while (remaining > 0 && state.status === 'playing') {
-        const advance = Math.min(remaining, DROP_INTERVAL_MS - state.dropElapsedMs);
+        const grounded = collides(state.board, state.active, state.active.x, state.active.y + 1);
+        const advance = Math.min(remaining, DROP_INTERVAL_MS - state.dropElapsedMs,
+          grounded ? LOCK_DELAY_MS - state.lockElapsedMs : Infinity);
         state.elapsedMs += advance;
         state.dropElapsedMs += advance;
+        if (grounded) state.lockElapsedMs += advance;
         remaining -= advance;
-        if (state.dropElapsedMs >= DROP_INTERVAL_MS) {
+        if (grounded && state.lockElapsedMs >= LOCK_DELAY_MS) {
+          lockPiece(state);
+        } else if (state.dropElapsedMs >= DROP_INTERVAL_MS) {
           state.dropElapsedMs = 0;
           fall(state);
         }

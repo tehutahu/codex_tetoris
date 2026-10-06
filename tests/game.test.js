@@ -138,13 +138,15 @@ test('20ライン・スプリントの規則', async t => {
     assert.equal(act(state, 'hardDrop').board[11][4], 'O');
   });
 
-  await t.test('ソフトドロップの加点と接地による即固定', () => {
+  await t.test('ソフトドロップは接地猶予を短縮せず加点する', () => {
     const state = { ...play(), active: piece('O', 4, 17), dropElapsedMs: 700 };
     const moved = act(state, 'softDrop');
     assert.equal(moved.active.y, 18);
     assert.equal(moved.score, 1);
     assert.equal(moved.dropElapsedMs, 0);
-    const locked = act(moved, 'softDrop');
+    const touching = act(moved, 'softDrop');
+    assert.equal(touching.pieces, 0);
+    const locked = act(touching, 'tick', { deltaMs: 300 });
     assert.equal(locked.pieces, 1);
     assert.equal(locked.score, 1);
   });
@@ -234,7 +236,7 @@ test('20ライン・スプリントの規則', async t => {
     const state = { ...play(), board, active: piece('O', 0, 18), next: ['O', 'I', 'T'], dropElapsedMs: 700 };
     const lost = act(state, 'tick', { deltaMs: 5000 });
     assert.equal(lost.status, 'lost');
-    assert.equal(lost.elapsedMs, 100);
+    assert.equal(lost.elapsedMs, 300);
   });
 
   await t.test('無効なdelta、未知の入力、ポーズ中は状態を変えない', () => {
