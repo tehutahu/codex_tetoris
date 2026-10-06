@@ -107,3 +107,11 @@ Windows上のPlaywright Firefox 155は `spawn UNKNOWN` で起動に失敗しま�
 Windows / Node 20.20.2で `npm test`（53件成功）、`npm run build` が成功しました。Chromium 153.0.8010.12の実キー入力で↑による即固定と加点、Spaceによる右回転（得点・NEXT不変）、保持中の1回発火を確認し、新しいキーで合法20ライン完走・lost・保存・再挑戦を含む本番シナリオを通過しました。console/runtime error・外部通信・asset失敗は0件でした。スクリーンショットの操作表示も目視確認しました。
 
 WindowsのFirefox 155は `spawn UNKNOWN` で起動できず、ゲーム操作に到達していません。変更後の実機操作は未確認です。Linuxでの3ブラウザ検証結果は関連PRのCIで確認します。
+
+## 2026-10-07 今日の20ライン（Issue #37）
+
+Windows / Node 20.20.2で `npm test`（59件成功）、`npm run build`、`npm audit --audit-level=high`（既知脆弱性0件）が成功しました。独立テストは日本時間0時・年末・閏日・不正日付・共有URLの優先順位・同日順番の再現・時計変更時の日付固定・通常と日替わりの保存領域と削除の分離を検証します。
+
+本番Chromium 153.0.8010.12で、日替わりseedに対する合法なキー入力から20ライン完走・保存・再読込・同順再挑戦まで通過しました。端末時計の午前0時と巻き戻しで選択日を維持し、明示更新だけで日付・盤面・得点・時間をリセットすること、日付別ベストと通常への復帰、削除キャンセル・日替わりだけの削除、不正URLの補正を確認しました。1440pxと390px幅の日替わりスクリーンショットを目視確認し、横方向のはみ出しはありません。console/runtime error・外部通信・asset失敗は0件です。
+
+`scripts/daily-acceptance.mjs` を既存の3ブラウザ受け入れへ組み込み、各ブラウザの `report.json` に日替わりの結果、`daily-desktop.png` と `daily-mobile.png` に画面を保存します。自動完走は時計を制御した機能検証で、人間の速度記録ではありません。Windows Firefoxは `spawn UNKNOWN` の起動失敗で操作に到達せず、Linuxの結果は関連PRのCIで確認します。今回の変更後の実スマートフォン・実Safari・実OS時計変更は未検証です。

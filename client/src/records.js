@@ -15,12 +15,12 @@ const validData = (d, rulesId) => d && d.version === RECORD_VERSION && d.rulesId
   (d.seeds.length === 0 || (d.overall && d.seeds.every(r => d.overall.elapsedMs <= r.elapsedMs)));
 
 // Storage and date are injectable; denied/corrupt storage never stops play.
-export function createRecords({ storage, rulesId = RULES_ID, now = () => new Date().toISOString() } = {}) {
+export function createRecords({ storage, rulesId = RULES_ID, key = recordKey(rulesId), now = () => new Date().toISOString() } = {}) {
   let data = empty(rulesId);
   let warning = '';
   try {
     if (!storage) throw new Error('Storage unavailable');
-    const raw = storage.getItem(recordKey(rulesId));
+    const raw = storage.getItem(key);
     if (raw !== null) {
       const parsed = JSON.parse(raw);
       if (!validData(parsed, rulesId)) throw new Error('Invalid records');
@@ -32,7 +32,7 @@ export function createRecords({ storage, rulesId = RULES_ID, now = () => new Dat
   function persist() {
     try {
       if (!storage) throw new Error('Storage unavailable');
-      storage.setItem(recordKey(rulesId), JSON.stringify(data));
+      storage.setItem(key, JSON.stringify(data));
       warning = '';
     } catch {
       warning = '記録を保存できません。この画面内では比較できます。';
@@ -62,7 +62,7 @@ export function createRecords({ storage, rulesId = RULES_ID, now = () => new Dat
       data = empty(rulesId);
       try {
         if (!storage) throw new Error('Storage unavailable');
-        storage.removeItem(recordKey(rulesId));
+        storage.removeItem(key);
         warning = '';
       } catch {
         warning = '保存済み記録を削除できません。再読み込みで戻る場合があります。';

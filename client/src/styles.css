@@ -9,6 +9,16 @@
   --border: #ffffff13;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
+.challenge-card { margin-top: 20px; padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: #ffffff04; }
+.mode-buttons { display: flex; gap: 8px; }
+.mode-buttons button { flex: 1; }
+.mode-buttons button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: #87e2cb0c; }
+.challenge-card p { font-size: 12px; line-height: 1.7; }
+.challenge-card .record-detail { font-size: 10px; color: var(--muted); overflow-wrap: anywhere; }
+#challenge-label { color: var(--accent); font-weight: 600; }
+#day-notice:empty { display: none; }
+#refresh-day { width: 100%; }
 body { margin: 0; min-width: 320px; background: radial-gradient(ellipse at 70% 0%, #23314366, transparent 55%); }
 button, a { -webkit-tap-highlight-color: transparent; }
 button { font: inherit; cursor: pointer; }

@@ -1,7 +1,8 @@
 import './styles.css';
-import { BOARD_WIDTH, BOARD_HEIGHT, TARGET_LINES, createPiece, getGhostY } from './game.js';
+import { BOARD_WIDTH, BOARD_HEIGHT, TARGET_LINES, RULES_ID, createPiece, getGhostY } from './game.js';
 import { createController } from './controller.js';
-import { createRecords } from './records.js';
+import { createRecords, recordKey } from './records.js';
+import { DAILY_RECORDS_ID, japanDate, dailyChallenge, challengeFromUrl, challengeUrl } from './challenge.js';
 
 const COLORS = {
   I: '#62d9e7', J: '#7a9cf3', L: '#f6b76d', O: '#f7d96b',
@@ -19,6 +20,16 @@ root.innerHTML = `
         <span class="eyebrow"><span class="live-dot"></span> 20 LINE CHALLENGE</span>
         <h1 id="game-title">積んで、消して。<br><span>ゴールまで。</span></h1>
         <p class="intro-copy">ブロックを揃えて20ラインを消そう。<br>自分のペースで、最速を目指す。</p>
+        <section class="challenge-card" aria-label="遊ぶモード">
+          <div class="mode-buttons">
+            <button id="normal-mode" class="secondary-button" aria-pressed="true">通常</button>
+            <button id="daily-mode" class="secondary-button" aria-pressed="false">今日の20ライン</button>
+          </div>
+          <p id="challenge-label"></p>
+          <p id="challenge-detail" class="record-detail"></p>
+          <p id="day-notice" role="status" class="record-detail"></p>
+          <button id="refresh-day" class="secondary-button" hidden>今日の挑戦へ更新</button>
+        </section>
         <div class="mission-card">
           <span class="small-label">今回の目標</span>
           <p><strong>20</strong><span>ライン消去</span></p>
@@ -82,9 +93,9 @@ root.innerHTML = `
       </section>
       <section class="records-card" aria-label="端末内の自己ベスト">
         <h2 class="small-label">自己ベスト</h2>
-        <p>全体 <strong id="best-overall">—</strong></p>
-        <p>この順番 <strong id="best-seed">—</strong></p>
-        <p class="record-detail">全体は異なる出現順を含みます。この端末・同じルール内の完走だけ。</p>
+        <p id="overall-row">全体 <strong id="best-overall">—</strong></p>
+        <p><span id="seed-best-label">この順番</span> <strong id="best-seed">—</strong></p>
+        <p id="records-detail" class="record-detail"></p>
         <p id="record-status" role="status" class="record-detail"></p>
         <button id="clear-records" class="secondary-button">記録を削除</button>
         <span id="clear-confirm" hidden><button id="confirm-clear" class="secondary-button">削除する</button><button id="cancel-clear" class="secondary-button">やめる</button></span>
@@ -98,19 +109,51 @@ const elements = Object.fromEntries([
   'overlay-message', 'overlay-action', 'session-action', 'restart', 'lines', 'progress',
   'remaining', 'score', 'seed', 'new-seed', 'best-overall', 'best-seed', 'record-status',
   'clear-records', 'clear-confirm', 'confirm-clear', 'cancel-clear',
+  'normal-mode', 'daily-mode', 'challenge-label', 'challenge-detail', 'day-notice',
+  'refresh-day', 'overall-row', 'seed-best-label', 'records-detail',
 ].map(id => [id, document.getElementById(id)]));
 const boardContext = elements.board.getContext('2d');
 const nextContext = elements.next.getContext('2d');
-const parameters = new URLSearchParams(location.search);
-const seed = parameters.get('seed') || crypto.getRandomValues(new Uint32Array(1))[0].toString(36);
-parameters.set('seed', seed);
-history.replaceState(null, '', `${location.pathname}?${parameters}${location.hash}`);
-elements.seed.textContent = seed;
-elements.seed.title = seed;
+let parameters = new URLSearchParams(location.search);
+const randomSeed = () => crypto.getRandomValues(new Uint32Array(1))[0].toString(36);
+let challenge = challengeFromUrl(parameters, randomSeed());
+const seed = challenge.seed;
 let storage;
 try { storage = window.localStorage; } catch { /* The game also works with storage denied. */ }
-const records = createRecords({ storage });
+const normalRecords = createRecords({ storage });
+const dailyRecords = createRecords({ storage, key: recordKey(DAILY_RECORDS_ID) });
+let records = challenge.mode === 'daily' ? dailyRecords : normalRecords;
 let recordNotice = '';
+function renderChallenge() {
+  const daily = challenge.mode === 'daily';
+  elements['normal-mode'].setAttribute('aria-pressed', String(!daily));
+  elements['daily-mode'].setAttribute('aria-pressed', String(daily));
+  elements['challenge-label'].textContent = daily ? `${challenge.day} の20ライン` : '通常の20ライン';
+  elements['challenge-detail'].textContent = daily
+    ? `日本時間の毎日0:00に更新 · ルール ${RULES_ID}。日付は端末の時計から決まります。`
+    : '好きな順番で練習。モードを切り替えると盤面をリセットします。';
+  elements['new-seed'].hidden = daily;
+  elements['overall-row'].hidden = daily;
+  elements['seed-best-label'].textContent = daily ? '挑戦日のベスト' : 'この順番';
+  elements['records-detail'].textContent = daily
+    ? 'この端末・この挑戦日だけの完走記録。通常の記録とは別に保存します。削除は日替わりの全日付が対象です。'
+    : '全体は異なる出現順を含みます。この端末・同じルール内の完走だけ。削除は通常の記録が対象です。';
+  elements.seed.textContent = challenge.seed;
+  elements.seed.title = challenge.seed;
+  parameters = challengeUrl(parameters, challenge);
+  history.replaceState(null, '', `${location.pathname}?${parameters}${location.hash}`);
+  renderDayNotice();
+}
+let observedDay = '';
+function renderDayNotice() {
+  const today = japanDate();
+  observedDay = today;
+  const changed = challenge.mode === 'daily' && challenge.day !== today;
+  elements['day-notice'].textContent = changed
+    ? `端末の現在日は${today}（日本時間）。この挑戦は${challenge.day}のままです。更新すると盤面をリセットします。` : '';
+  elements['refresh-day'].hidden = !changed;
+}
+renderChallenge();
 function renderRecords(currentSeed) {
   const saved = records.get(currentSeed);
   elements['best-overall'].textContent = saved.overall ? formatTime(saved.overall.elapsedMs) : '—';
@@ -237,6 +280,24 @@ function render(state) {
 
 export const controller = createController({ seed, onChange: render });
 render(controller.getState());
+function changeChallenge(next) {
+  // Finish clock synchronization with the old mode before changing its record store.
+  if (controller.getState().status === 'playing') controller.dispatch('pause');
+  challenge = next;
+  records = challenge.mode === 'daily' ? dailyRecords : normalRecords;
+  recordNotice = '';
+  renderChallenge();
+  controller.dispatch('restart', { seed: challenge.seed });
+  renderRecords(challenge.seed);
+  elements.board.focus({ preventScroll: true });
+}
+elements['daily-mode'].addEventListener('click', () => {
+  if (challenge.mode !== 'daily') changeChallenge(dailyChallenge());
+});
+elements['normal-mode'].addEventListener('click', () => {
+  if (challenge.mode !== 'normal') changeChallenge({ mode: 'normal', seed: randomSeed() });
+});
+elements['refresh-day'].addEventListener('click', () => changeChallenge(dailyChallenge()));
 function sessionAction() {
   const { status } = controller.getState();
   controller.dispatch(status === 'playing' ? 'pause' : ['won', 'lost'].includes(status) ? 'restart' : 'start');
@@ -272,15 +333,9 @@ window.addEventListener('keydown', event => {
 });
 elements['new-seed'].addEventListener('click', () => {
   const previousSeed = controller.getState().seed;
-  const randomSeed = crypto.getRandomValues(new Uint32Array(1))[0].toString(36);
-  const nextSeed = randomSeed === previousSeed ? `${randomSeed}-new` : randomSeed;
-  parameters.set('seed', nextSeed);
-  history.replaceState(null, '', `${location.pathname}?${parameters}${location.hash}`);
-  elements.seed.textContent = nextSeed;
-  elements.seed.title = nextSeed;
-  controller.dispatch('restart', { seed: nextSeed });
-  renderRecords(nextSeed);
-  elements.board.focus({ preventScroll: true });
+  const generated = randomSeed();
+  const nextSeed = generated === previousSeed ? `${generated}-new` : generated;
+  changeChallenge({ mode: 'normal', seed: nextSeed });
 });
 elements['clear-records'].addEventListener('click', () => {
   if (controller.getState().status === 'playing') controller.dispatch('pause');
@@ -333,6 +388,7 @@ document.addEventListener('visibilitychange', () => {
 });
 function frame(timestamp) {
   controller.tick(timestamp);
+  if (japanDate() !== observedDay) renderDayNotice();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
