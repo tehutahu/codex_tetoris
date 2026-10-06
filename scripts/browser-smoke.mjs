@@ -27,7 +27,7 @@ const externalRequests = [];
 const failedResponses = [];
 const keys = {
   moveLeft: 'ArrowLeft', moveRight: 'ArrowRight',
-  rotateLeft: 'z', rotateRight: 'x', softDrop: 'ArrowDown', hardDrop: 'Space',
+  rotateLeft: 'z', rotateRight: 'Space', softDrop: 'ArrowDown', hardDrop: 'ArrowUp',
 };
 let origin;
 function observe(target) {
@@ -82,10 +82,15 @@ try {
   assert.notEqual(await bitmap(), beforeMove, 'left input changes the drawn piece');
   await page.keyboard.press('ArrowRight');
   assert.equal(await bitmap(), beforeMove, 'right input returns the piece');
-  await page.keyboard.press('Space'); // The initial O cannot verify rotation; the next S can.
+  await page.keyboard.press('ArrowUp'); // The initial O cannot verify rotation; the next S can.
+  assert.ok(await number('#score') > 0, 'ArrowUp immediately drops and locks the initial piece');
+  const rotationScore = await number('#score');
+  const rotationNext = await page.locator('#next').getAttribute('aria-label');
   const beforeRotate = await bitmap();
-  await page.keyboard.press('x');
+  await page.keyboard.press('Space');
   assert.notEqual(await bitmap(), beforeRotate, 'right rotation changes the non-square piece');
+  assert.equal(await number('#score'), rotationScore, 'Space rotates without dropping or scoring');
+  assert.equal(await page.locator('#next').getAttribute('aria-label'), rotationNext, 'Space does not lock or spawn a piece');
   await page.keyboard.press('z');
   assert.equal(await bitmap(), beforeRotate, 'left rotation returns the non-square piece');
   const beforeSoftScore = await number('#score');
@@ -133,16 +138,16 @@ try {
   await page.clock.runFor(100);
   assert.equal(await number('#score'), 3, 'soft release stops scoring');
   await restart();
-  await page.keyboard.down('Space');
+  await page.keyboard.down('ArrowUp');
   const dropScore = await number('#score');
   await page.clock.runFor(200);
   assert.equal(await number('#score'), dropScore, 'hard drop does not repeat');
-  await page.keyboard.up('Space');
-  await page.keyboard.down('x');
+  await page.keyboard.up('ArrowUp');
+  await page.keyboard.down('Space');
   const heldRotation = await bitmap();
   await page.clock.runFor(200);
   assert.equal(await bitmap(), heldRotation, 'rotation does not repeat');
-  await page.keyboard.up('x');
+  await page.keyboard.up('Space');
   await restart();
   await page.keyboard.down('ArrowLeft');
   await page.keyboard.press('p');
@@ -230,7 +235,7 @@ try {
   assert.equal(await page.locator('#progress').getAttribute('max'), '20');
   assert.equal(await page.locator('#progress').evaluate(element => element.value), 20);
   const wonScore = await number('#score');
-  await page.keyboard.press('Space');
+  await page.keyboard.press('ArrowUp');
   assert.equal(await number('#score'), wonScore, 'terminal game ignores drop input');
   const readSaved = () => page.evaluate(key => localStorage.getItem(key), recordKey());
   const savedCompletion = await readSaved();
@@ -256,7 +261,7 @@ try {
   let lostPieces = 0;
   while (lost.status === 'playing' && lostPieces < 30) {
     lost = updateGame(lost, { type: 'hardDrop' });
-    await page.keyboard.press('Space');
+    await page.keyboard.press('ArrowUp');
     lostPieces++;
   }
   assert.equal(lost.status, 'lost');
@@ -319,7 +324,7 @@ try {
   await restart();
   const sameSeedBoard = await bitmap();
   const sameSeedNext = await page.locator('#next').getAttribute('aria-label');
-  await page.keyboard.press('Space');
+  await page.keyboard.press('ArrowUp');
   await restart();
   assert.equal(await bitmap(), sameSeedBoard, 'same-order retry restores initial piece');
   assert.equal(await page.locator('#next').getAttribute('aria-label'), sameSeedNext);
