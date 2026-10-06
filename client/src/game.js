@@ -137,7 +137,7 @@ function fall(state, soft = false) {
 // Actions return a new state; the previous state and its board remain unchanged.
 export function updateGame(previous, action) {
   const { type } = action;
-  if (type === 'restart') return { ...createGame(previous.seed), status: 'playing' };
+  if (type === 'restart') return { ...createGame(action.seed ?? previous.seed), status: 'playing' };
   if (type === 'start' && ['ready', 'paused'].includes(previous.status)) {
     return { ...previous, status: 'playing' };
   }

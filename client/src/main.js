@@ -1,6 +1,7 @@
 import './styles.css';
 import { BOARD_WIDTH, BOARD_HEIGHT, TARGET_LINES, createPiece, getGhostY } from './game.js';
 import { createController } from './controller.js';
+import { createRecords } from './records.js';
 
 const COLORS = {
   I: '#62d9e7', J: '#7a9cf3', L: '#f6b76d', O: '#f7d96b',
@@ -63,6 +64,7 @@ root.innerHTML = `
         <div class="session-actions">
           <button id="session-action" class="primary-button">スタート</button>
           <button id="restart" class="secondary-button">同じ順番でやり直す</button>
+          <button id="new-seed" class="secondary-button">新しい順番で遊ぶ</button>
         </div>
         <p class="seed-note">同じシードは同じ順番<br><span id="seed"></span></p>
       </aside>
@@ -78,6 +80,15 @@ root.innerHTML = `
           <button data-action="hardDrop" class="drop-button"><span>⇓</span>ハードドロップ</button>
         </div>
       </section>
+      <section class="records-card" aria-label="端末内の自己ベスト">
+        <h2 class="small-label">自己ベスト</h2>
+        <p>全体 <strong id="best-overall">—</strong></p>
+        <p>この順番 <strong id="best-seed">—</strong></p>
+        <p class="record-detail">全体は異なる出現順を含みます。この端末・同じルール内の完走だけ。</p>
+        <p id="record-status" role="status" class="record-detail"></p>
+        <button id="clear-records" class="secondary-button">記録を削除</button>
+        <span id="clear-confirm" hidden><button id="confirm-clear" class="secondary-button">削除する</button><button id="cancel-clear" class="secondary-button">やめる</button></span>
+      </section>
     </main>
     <footer>10 × 20 · 7-BAG · OFFLINE <span>水平の壁キック / 接地猶予300ms・延長8回まで</span></footer>
   </div>`;
@@ -85,7 +96,8 @@ root.innerHTML = `
 const elements = Object.fromEntries([
   'board', 'next', 'status-label', 'time', 'overlay', 'overlay-icon', 'overlay-title',
   'overlay-message', 'overlay-action', 'session-action', 'restart', 'lines', 'progress',
-  'remaining', 'score', 'seed',
+  'remaining', 'score', 'seed', 'new-seed', 'best-overall', 'best-seed', 'record-status',
+  'clear-records', 'clear-confirm', 'confirm-clear', 'cancel-clear',
 ].map(id => [id, document.getElementById(id)]));
 const boardContext = elements.board.getContext('2d');
 const nextContext = elements.next.getContext('2d');
@@ -95,6 +107,16 @@ parameters.set('seed', seed);
 history.replaceState(null, '', `${location.pathname}?${parameters}${location.hash}`);
 elements.seed.textContent = seed;
 elements.seed.title = seed;
+let storage;
+try { storage = window.localStorage; } catch { /* The game also works with storage denied. */ }
+const records = createRecords({ storage });
+let recordNotice = '';
+function renderRecords(currentSeed) {
+  const saved = records.get(currentSeed);
+  elements['best-overall'].textContent = saved.overall ? formatTime(saved.overall.elapsedMs) : '—';
+  elements['best-seed'].textContent = saved.seedBest ? formatTime(saved.seedBest.elapsedMs) : '—';
+  elements['record-status'].textContent = saved.warning || recordNotice;
+}
 
 function formatTime(milliseconds) {
   const tenths = Math.floor(milliseconds / 100);
@@ -173,6 +195,14 @@ const STATUS = { ready: '準備完了', playing: 'プレイ中', paused: '一時
 let previousNext = '';
 let previousStatus = '';
 function render(state) {
+  if (previousStatus !== state.status) {
+    if (state.status === 'won') {
+      recordNotice = records.complete(state) ? '自己ベスト更新！' : '完走を記録しました。';
+    } else if (state.status === 'playing') recordNotice = '';
+    elements['clear-confirm'].hidden = true;
+    elements['clear-records'].hidden = false;
+    renderRecords(state.seed);
+  }
   drawBoard(state);
   const nextKey = state.next.join('');
   if (nextKey !== previousNext) {
@@ -239,6 +269,37 @@ window.addEventListener('keydown', event => {
   if (event.repeat) return;
   if (['pause', 'restart'].includes(action)) controller.dispatch(action);
   else controller.press(`key:${event.code}`, action);
+});
+elements['new-seed'].addEventListener('click', () => {
+  const previousSeed = controller.getState().seed;
+  const randomSeed = crypto.getRandomValues(new Uint32Array(1))[0].toString(36);
+  const nextSeed = randomSeed === previousSeed ? `${randomSeed}-new` : randomSeed;
+  parameters.set('seed', nextSeed);
+  history.replaceState(null, '', `${location.pathname}?${parameters}${location.hash}`);
+  elements.seed.textContent = nextSeed;
+  elements.seed.title = nextSeed;
+  controller.dispatch('restart', { seed: nextSeed });
+  renderRecords(nextSeed);
+  elements.board.focus({ preventScroll: true });
+});
+elements['clear-records'].addEventListener('click', () => {
+  if (controller.getState().status === 'playing') controller.dispatch('pause');
+  elements['clear-confirm'].hidden = false;
+  elements['clear-records'].hidden = true;
+  elements['confirm-clear'].focus();
+});
+elements['cancel-clear'].addEventListener('click', () => {
+  elements['clear-confirm'].hidden = true;
+  elements['clear-records'].hidden = false;
+  elements['clear-records'].focus();
+});
+elements['confirm-clear'].addEventListener('click', () => {
+  records.clear();
+  recordNotice = '記録を削除しました。';
+  renderRecords(controller.getState().seed);
+  elements['clear-confirm'].hidden = true;
+  elements['clear-records'].hidden = false;
+  elements['clear-records'].focus();
 });
 window.addEventListener('keyup', event => controller.release(`key:${event.code}`));
 
