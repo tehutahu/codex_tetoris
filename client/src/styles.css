@@ -140,3 +140,9 @@ footer span { letter-spacing: 0; }
   .board-overlay h2 { font-size: 13px; }
 }
 
+.records-card { grid-column: 2 / 4; margin-top: 18px; padding: 18px; border: 1px solid #ffffff18; border-radius: 12px; background: #ffffff03; }
+.records-card p { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.records-card .record-detail { display: block; color: #9bacbf; font-size: 11px; line-height: 1.6; }
+.records-card strong { font-variant-numeric: tabular-nums; }
+.records-card button { width: 100%; margin-top: 6px; }
+@media (max-width: 730px) { .records-card { grid-column: 1 / 3; } }

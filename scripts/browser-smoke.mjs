@@ -4,7 +4,8 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { chromium } from 'playwright';
 import { createGameServer } from '../server.js';
-import { createGame, updateGame } from '../client/src/game.js';
+import { createGame, updateGame, RULES_ID } from '../client/src/game.js';
+import { recordKey } from '../client/src/records.js';
 import { ACCEPTANCE_SEED, sprintPlan } from './sprint-plan.mjs';
 
 const output = resolve('output/playwright');
@@ -27,6 +28,14 @@ try {
   browser = await chromium.launch();
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   const page = await context.newPage();
+  await page.addInitScript(() => {
+    window.recordWrites = 0;
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key, value) {
+      if (key.startsWith('block-sprint.records.')) window.recordWrites++;
+      return original.call(this, key, value);
+    };
+  });
   page.on('pageerror', error => errors.push(String(error)));
   page.on('console', message => {
     if (message.type() === 'error') errors.push(message.text());
@@ -190,6 +199,7 @@ try {
   await page.keyboard.up('ArrowLeft');
   await restart();
   await page.screenshot({ path: resolve(output, 'desktop.png'), fullPage: true });
+  await page.clock.runFor(320); // A controlled elapsed time, not a human speed record.
 
   let firstClearChecked = false;
   for (const piece of plan) {
@@ -208,7 +218,22 @@ try {
   const wonScore = await number('#score');
   await page.keyboard.press('Space');
   assert.equal(await number('#score'), wonScore, 'terminal game ignores drop input');
+  const readSaved = () => page.evaluate(key => localStorage.getItem(key), recordKey());
+  const savedCompletion = await readSaved();
+  const saved = JSON.parse(savedCompletion);
+  assert.equal(saved.rulesId, RULES_ID);
+  assert.equal(saved.overall.seed, ACCEPTANCE_SEED);
+  assert.equal(saved.overall.score, wonScore);
+  assert(saved.overall.elapsedMs > 0);
+  assert.equal(await page.evaluate(() => window.recordWrites), 1, 'one write per completed run');
+  await page.clock.runFor(1000);
+  assert.equal(await readSaved(), savedCompletion, 'terminal rendering does not save again');
+  const savedBestText = await text('#best-overall');
   await page.screenshot({ path: resolve(output, 'won.png'), fullPage: true });
+  await page.reload();
+  await page.locator('#status-label').waitFor();
+  assert.equal(await text('#best-overall'), savedBestText, 'best survives reload');
+  assert.equal(await text('#best-seed'), savedBestText, 'seed best survives reload');
 
   await page.keyboard.press('Enter');
   assert.equal(await text('#status-label'), 'プレイ中');
@@ -222,6 +247,7 @@ try {
   }
   assert.equal(lost.status, 'lost');
   assert.equal(await text('#status-label'), 'ゲーム終了');
+  assert.equal(await readSaved(), savedCompletion, 'lost never creates a completion record');
   await page.locator('#overlay-action').click();
   await page.locator('#board').click();
   assert.equal(await text('#status-label'), 'プレイ中');
@@ -234,6 +260,7 @@ try {
   const blurTime = await text('#time');
   await page.clock.runFor(1600);
   assert.equal(await text('#time'), blurTime, 'blur handler freezes the displayed timer');
+  assert.equal(await readSaved(), savedCompletion, 'interruption never creates a completion record');
   await page.locator('#session-action').click();
   await page.locator('#board').click();
   assert.equal(await text('#status-label'), 'プレイ中');
@@ -266,6 +293,58 @@ try {
   await page.locator('[data-action="hardDrop"]').click();
   assert(await number('#score') > 0);
   await context.setOffline(false);
+  await restart();
+  await page.clock.runFor(100);
+  for (const piece of plan) {
+    for (const action of piece.actions) await page.keyboard.press(keys[action]);
+  }
+  assert.equal(await text('#status-label'), '20ライン達成！');
+  const faster = JSON.parse(await readSaved());
+  assert(faster.overall.elapsedMs < saved.overall.elapsedMs, 'a faster legal completion updates best');
+  assert.equal(await text('#record-status'), '自己ベスト更新！');
+  await restart();
+  const sameSeedBoard = await bitmap();
+  const sameSeedNext = await page.locator('#next').getAttribute('aria-label');
+  await page.keyboard.press('Space');
+  await restart();
+  assert.equal(await bitmap(), sameSeedBoard, 'same-order retry restores initial piece');
+  assert.equal(await page.locator('#next').getAttribute('aria-label'), sameSeedNext);
+  await page.locator('#new-seed').click();
+  const freshSeed = await text('#seed');
+  assert.notEqual(freshSeed, ACCEPTANCE_SEED);
+  assert.equal(new URL(page.url()).searchParams.get('seed'), freshSeed);
+  assert.equal(await number('#score'), 0);
+  assert.equal(await number('#lines'), 0);
+  assert.equal(await text('#time'), '00:00.0');
+  assert.equal(await text('#best-seed'), '—');
+  assert.notEqual(await text('#best-overall'), '—');
+  await page.locator('#clear-records').click();
+  await page.locator('#cancel-clear').click();
+  assert.notEqual(await readSaved(), null, 'cancel preserves records');
+  await page.locator('#clear-records').click();
+  await page.locator('#confirm-clear').click();
+  assert.equal(await readSaved(), null);
+  assert.equal(await text('#best-overall'), '—');
+  assert.equal(await text('#best-seed'), '—');
+  // A separate context models a browser policy rejecting storage access.
+  const deniedContext = await browser.newContext();
+  await deniedContext.addInitScript(() => {
+    Object.defineProperty(window, 'localStorage', { get() { throw new Error('Storage denied'); } });
+  });
+  const deniedPage = await deniedContext.newPage();
+  deniedPage.on('pageerror', error => errors.push(String(error)));
+  await deniedPage.clock.install({ time: startTime });
+  await deniedPage.goto(origin + '/?seed=' + ACCEPTANCE_SEED);
+  await deniedPage.clock.pauseAt(new Date(startTime.getTime() + 1000));
+  assert.match(await deniedPage.locator('#record-status').textContent(), /読み込めません/);
+  await deniedPage.locator('#overlay-action').click();
+  await deniedPage.locator('#board').click();
+  for (const piece of plan) for (const action of piece.actions) await deniedPage.keyboard.press(keys[action]);
+  assert.equal(await deniedPage.locator('#status-label').textContent(), '20ライン達成！');
+  assert.match(await deniedPage.locator('#record-status').textContent(), /保存できません/);
+  await deniedPage.locator('#overlay-action').click();
+  assert.equal(await deniedPage.locator('#status-label').textContent(), 'プレイ中');
+  await deniedContext.close();
   assert.deepEqual(errors, [], 'no console or runtime errors');
   assert.deepEqual(externalRequests, [], 'no external runtime request');
   assert.deepEqual(failedResponses, [], 'no missing production asset');
@@ -278,6 +357,8 @@ try {
       'keyboard-hold-release', 'pointer-hold-outside-release', 'pointercancel-event',
       'lostpointercapture', 'one-shot-rotation-drop', 'grounded-adjustment',
       'pause-restart-blur-input-clear', 'mobile-buttons', 'mobile-layout',
+      'best-save-once', 'reload-best', 'faster-completion-best', 'lost-pause-no-save',
+      'same-new-seed-retry', 'delete-cancel-confirm', 'storage-denied-complete-retry',
       'offline-continuation', 'console', 'network'],
     errors, externalRequests, failedResponses,
   };

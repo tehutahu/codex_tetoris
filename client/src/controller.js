@@ -25,10 +25,10 @@ export function createController({ seed, now = () => performance.now(), onChange
     publish(updateGame(state, { type: 'tick', deltaMs: end - lastTime }));
     lastTime = end;
   }
-  function dispatch(type) {
+  function dispatch(type, options = {}) {
     tick();
     if (['start', 'pause', 'restart'].includes(type)) input.clear();
-    publish(updateGame(state, { type }));
+    publish(updateGame(state, { ...options, type }));
   }
   return {
     dispatch, tick,
